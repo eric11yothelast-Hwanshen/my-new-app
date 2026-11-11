@@ -4,6 +4,12 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.room)
+}
+
+// Room schema 匯出位置（供未來遷移比對）
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 android {
@@ -62,6 +68,11 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
+
+    // Room 資料庫（KSP 處理器）
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
 
     // 開發期工具
     debugImplementation(libs.androidx.compose.ui.tooling)
