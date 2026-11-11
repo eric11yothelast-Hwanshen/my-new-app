@@ -35,7 +35,7 @@ jobs:
         run: |
           ./gradlew lintDebug --no-daemon || {
             echo "===== Lint 錯誤清單 ====="
-            grep 'severity="Error"' app/build/reports/lint-results-debug.xml || cat app/build/reports/lint-results-debug.* || true
+            cat "app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt" || true
             exit 1
           }
 
