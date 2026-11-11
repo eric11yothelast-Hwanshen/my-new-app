@@ -1,1 +1,7 @@
-# R8 混淆規則（Compose 與 Hilt 預設規則已隨套件附帶，此檔保留給後續階段擴充）
+# R8 混淆規則（Compose、Hilt、Room、Retrofit、OkHttp 的規則已隨套件附帶）
+
+# Tink（EncryptedSharedPreferences 依賴）引用的 errorprone 註解不在 classpath：安全忽略
+-dontwarn com.google.errorprone.annotations.**
+
+# javax 註解（部分來源套件僅編譯期引用）
+-dontwarn javax.annotation.**
