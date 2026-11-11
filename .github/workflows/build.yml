@@ -47,9 +47,6 @@ jobs:
             echo "無 KEYSTORE_BASE64 Secret，改用倉庫 .private/ 內的 keystore"
           fi
 
-      - name: Debug - list .private
-        run: ls -la .private/ || true
-
       - name: Assemble release APK (R8 + signing)
         env:
           KEYSTORE_FILE: ${{ steps.secrets.outputs.file }}
