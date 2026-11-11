@@ -285,8 +285,8 @@ fun TransactionsScreen(
     // 期間篩選對話框
     if (showDateRange) {
         val pickerState = rememberDateRangePickerState(
-            initialStartMillis = state.filters.startDate,
-            initialEndMillis = state.filters.endDate,
+            initialSelectedStartDate = state.filters.startDate,
+            initialSelectedEndDate = state.filters.endDate,
         )
         AlertDialog(
             onDismissRequest = { showDateRange = false },
@@ -301,7 +301,10 @@ fun TransactionsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.setDateRange(pickerState.selectedStartMillis, pickerState.selectedEndMillis)
+                        viewModel.setDateRange(
+                            pickerState.selectedStartDateMillis,
+                            pickerState.selectedEndDateMillis,
+                        )
                         showDateRange = false
                     },
                 ) { Text(stringResource(R.string.common_confirm)) }
