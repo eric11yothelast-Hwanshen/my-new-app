@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 主題：edge-to-edge 搭配 Compose，僅保留無 ActionBar 的基本框架 -->
+    <style name="Theme.Hmoney" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

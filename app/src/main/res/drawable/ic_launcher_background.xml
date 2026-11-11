@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 圖示背景：深青綠底＋細微圓形光暈 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#0F5E52"
+        android:pathData="M0,0h108v108h-108z" />
+    <path
+        android:fillColor="#14776A"
+        android:pathData="M78,10a26,26 0 1,0 0,52a26,26 0 1,0 0,-52z" />
+    <path
+        android:fillColor="#0B4A41"
+        android:pathData="M18,72a20,20 0 1,0 0,40a20,20 0 1,0 0,-40z" />
+</vector>

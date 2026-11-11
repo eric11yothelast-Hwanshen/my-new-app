@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 預設語言：繁體中文（zh-TW）。所有字串集中於此，禁止 hardcode 文字 -->
+<resources>
+    <string name="app_name">幻帳</string>
+
+    <!-- 底部導覽 -->
+    <string name="tab_overview">總覽</string>
+    <string name="tab_transactions">明細</string>
+    <string name="tab_stats">統計</string>
+    <string name="tab_accounts">帳戶</string>
+    <string name="tab_settings">設定</string>
+
+    <!-- 總覽頁 -->
+    <string name="overview_title">總覽</string>
+    <string name="overview_month_summary">本月收支</string>
+    <string name="overview_description">這裡會顯示本月收支玻璃卡、各帳戶餘額與近期明細，並提供快速記帳按鈕。</string>
+
+    <!-- 明細頁 -->
+    <string name="transactions_title">明細</string>
+    <string name="transactions_description">這裡會顯示完整交易列表，支援關鍵字搜尋與期間、帳戶、分類、類型篩選。</string>
+
+    <!-- 統計頁 -->
+    <string name="stats_title">統計</string>
+    <string name="stats_description">這裡會顯示支出分類占比、收支趨勢與分類排行榜，可依日／週／月／年切換。</string>
+
+    <!-- 帳戶頁 -->
+    <string name="accounts_title">帳戶</string>
+    <string name="accounts_description">這裡會顯示各帳戶卡片與即時餘額，可新增帳戶、帳戶間轉帳與管理帳戶。</string>
+
+    <!-- 設定頁 -->
+    <string name="settings_title">設定</string>
+    <string name="settings_description">這裡會提供預算、AI 連線、通知、備份與外觀等設定項目。</string>
+</resources>
