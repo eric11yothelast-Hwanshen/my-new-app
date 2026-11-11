@@ -21,6 +21,9 @@ import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.time.ZoneId
 
+/** AI 助手頁導覽路徑（通知深連結用） */
+const val AI_ASSISTANT_ROUTE = "ai_assistant"
+
 /**
  * 每日記帳提醒的 fallback Worker（精確鬧鐘被系統收回時使用）。
  */
@@ -196,7 +199,8 @@ class WeeklySummaryWorker @AssistedInject constructor(
                 Formats.moneyWithCurrency(total),
                 topCategory,
             ),
-            intent = notifier.appPendingIntent(),
+            // 點擊直接開啟 AI 分析頁
+            intent = notifier.appPendingIntent(route = AI_ASSISTANT_ROUTE),
         )
         return Result.success()
     }

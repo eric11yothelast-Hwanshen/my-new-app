@@ -54,10 +54,12 @@ import dev.chrisbanes.haze.rememberHazeState
 @Composable
 fun SettingsScreen(
     onOpenWizard: () -> Unit,
+    onOpenAi: () -> Unit,
     modifier: Modifier = Modifier,
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     budgetViewModel: BudgetViewModel = hiltViewModel(),
     recurringViewModel: RecurringViewModel = hiltViewModel(),
+    aiViewModel: com.hmoney.app.ui.screens.ai.AiViewModel = hiltViewModel(),
 ) {
     val appearance by settingsViewModel.appearance.collectAsState()
     val glassState = rememberHazeState()
@@ -141,6 +143,72 @@ fun SettingsScreen(
 
         // ===== 週期交易 =====
         RecurringSection(recurringViewModel)
+
+        // ===== AI 連線 =====
+        AiSection(aiViewModel, onOpenAi)
+    }
+}
+
+/** AI 連線區：Base URL／API Key／模型名稱（加密保存）與開啟 AI 助手 */
+@Composable
+private fun AiSection(
+    viewModel: com.hmoney.app.ui.screens.ai.AiViewModel,
+    onOpenAi: () -> Unit,
+) {
+    val config by viewModel.config.collectAsState()
+    var baseUrl by remember { mutableStateOf(config.baseUrl) }
+    var apiKey by remember { mutableStateOf(config.apiKey) }
+    var model by remember { mutableStateOf(config.model) }
+    var saved by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.ai_config_title),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            text = stringResource(R.string.ai_config_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        OutlinedTextField(
+            value = baseUrl,
+            onValueChange = { baseUrl = it; saved = false },
+            label = { Text(stringResource(R.string.ai_base_url)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = apiKey,
+            onValueChange = { apiKey = it; saved = false },
+            label = { Text(stringResource(R.string.ai_api_key)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = model,
+            onValueChange = { model = it; saved = false },
+            label = { Text(stringResource(R.string.ai_model)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = {
+                viewModel.saveConfig(baseUrl, apiKey, model) { saved = true }
+            }) {
+                Text(stringResource(R.string.ai_config_save))
+            }
+            TextButton(onClick = onOpenAi) {
+                Text(stringResource(R.string.ai_open_assistant))
+            }
+        }
+        if (saved) {
+            Text(
+                text = stringResource(R.string.ai_config_saved),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
 

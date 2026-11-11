@@ -192,6 +192,36 @@
     <string name="wizard_steps_google">Pixel／原生 Android 只需完成「忽略電池最佳化」即可，不建議任何額外設定。</string>
     <string name="wizard_back">返回設定</string>
 
+    <!-- AI 助手 -->
+    <string name="ai_title">AI 助手</string>
+    <string name="ai_week_analysis">本週花費分析</string>
+    <string name="ai_run">開始分析</string>
+    <string name="ai_loading">分析中，請稍候…</string>
+    <string name="ai_question_hint">想問什麼？例：我這週花太多嗎？</string>
+    <string name="ai_ask">送出</string>
+    <string name="ai_config_title">AI 連線</string>
+    <string name="ai_base_url">API Base URL</string>
+    <string name="ai_api_key">API Key</string>
+    <string name="ai_model">模型名稱</string>
+    <string name="ai_config_save">儲存連線設定</string>
+    <string name="ai_config_saved">已儲存</string>
+    <string name="ai_config_hint">支援 OpenAI 相容 API（Mistral、自建 proxy 皆可）；金鑰只會加密保存在本機</string>
+    <string name="ai_not_configured">還沒有設定 AI 連線。請到「AI 連線」填入 API Base URL、API Key 與模型名稱，即可獲得本週花費分析與智慧問答。</string>
+    <string name="ai_go_config">前往設定</string>
+    <string name="ai_history">分析歷史</string>
+    <string name="ai_history_empty">還沒有分析紀錄，先來跑一次本週分析吧</string>
+    <string name="ai_summary">總結</string>
+    <string name="ai_insights">分類洞察</string>
+    <string name="ai_anomalies">異常支出偵測</string>
+    <string name="ai_tips">省錢建議</string>
+    <string name="ai_error_network">網路無法連線，請檢查網路後再試</string>
+    <string name="ai_error_unauthorized">API Key 無效或未授權，請檢查連線設定</string>
+    <string name="ai_error_quota">API 額度用盡，請確認方案或儲值後再試</string>
+    <string name="ai_error_http">伺服器錯誤（%1$d），請稍後再試</string>
+    <string name="ai_error_parse">回應格式無法解析，請再試一次</string>
+    <string name="ai_error_unknown">發生未知錯誤，請再試一次</string>
+    <string name="ai_open_assistant">開啟 AI 助手</string>
+
     <!-- 通用 -->
     <string name="common_delete">刪除</string>
     <string name="common_cancel">取消</string>

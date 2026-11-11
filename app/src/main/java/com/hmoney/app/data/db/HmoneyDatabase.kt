@@ -5,11 +5,13 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.hmoney.app.data.db.dao.AccountDao
+import com.hmoney.app.data.db.dao.AiAnalysisDao
 import com.hmoney.app.data.db.dao.BudgetDao
 import com.hmoney.app.data.db.dao.CategoryDao
 import com.hmoney.app.data.db.dao.RecurringTransactionDao
 import com.hmoney.app.data.db.dao.TransactionDao
 import com.hmoney.app.data.db.entity.AccountEntity
+import com.hmoney.app.data.db.entity.AiAnalysisEntity
 import com.hmoney.app.data.db.entity.BudgetEntity
 import com.hmoney.app.data.db.entity.CategoryEntity
 import com.hmoney.app.data.db.entity.RecurringTransactionEntity
@@ -26,8 +28,9 @@ import com.hmoney.app.data.db.entity.TransactionEntity
         TransactionEntity::class,
         BudgetEntity::class,
         RecurringTransactionEntity::class,
+        AiAnalysisEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class HmoneyDatabase : RoomDatabase() {
@@ -37,6 +40,7 @@ abstract class HmoneyDatabase : RoomDatabase() {
     abstract fun transactionDao(): TransactionDao
     abstract fun budgetDao(): BudgetDao
     abstract fun recurringTransactionDao(): RecurringTransactionDao
+    abstract fun aiAnalysisDao(): AiAnalysisDao
 
     companion object {
         /** 首次安裝時的種子資料：預設帳戶與內建分類 */
@@ -99,7 +103,23 @@ abstract class HmoneyDatabase : RoomDatabase() {
             }
         }
 
+        /** 版本 2 → 3：新增 AI 分析歷史資料表 */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `ai_analysis`" +
+                        "(`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
+                        " `createdAtEpochMillis` INTEGER NOT NULL," +
+                        " `query` TEXT NOT NULL," +
+                        " `summary` TEXT NOT NULL," +
+                        " `insights` TEXT NOT NULL," +
+                        " `anomalies` TEXT NOT NULL," +
+                        " `tips` TEXT NOT NULL)",
+                )
+            }
+        }
+
         /** 未來版本升級時擴充此清單 */
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2)
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
     }
 }

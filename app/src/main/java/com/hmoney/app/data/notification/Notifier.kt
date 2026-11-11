@@ -57,21 +57,28 @@ class Notifier @Inject constructor(
         channels.forEach { manager.createNotificationChannel(it) }
     }
 
-    /** 開啟 App 主畫面的 PendingIntent（一律 FLAG_IMMUTABLE） */
-    fun appPendingIntent(): android.app.PendingIntent {
+    /** 開啟 App 主畫面的 PendingIntent（一律 FLAG_IMMUTABLE）；可指定開啟頁面 */
+    fun appPendingIntent(route: String? = null): android.app.PendingIntent {
         val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
             ?: return android.app.PendingIntent.getActivity(
                 context, 0,
                 android.content.Intent(),
                 android.app.PendingIntent.FLAG_IMMUTABLE,
             )
+        if (route != null) {
+            intent.putExtra(EXTRA_OPEN_ROUTE, route)
+        }
         return android.app.PendingIntent.getActivity(
             context,
-            0,
+            route?.hashCode() ?: 0,
             intent,
             android.app.PendingIntent.FLAG_IMMUTABLE or
                 android.app.PendingIntent.FLAG_UPDATE_CURRENT,
         )
+    }
+
+    companion object {
+        const val EXTRA_OPEN_ROUTE = "open_route"
     }
 
     /** 是否有通知權限（API 33+ 動態請求） */

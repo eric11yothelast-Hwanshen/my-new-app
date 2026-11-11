@@ -26,9 +26,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.runtime.LaunchedEffect
+import com.hmoney.app.data.work.AI_ASSISTANT_ROUTE
 import com.hmoney.app.ui.components.glassSource
 import com.hmoney.app.ui.components.glassSurface
 import com.hmoney.app.ui.navigation.TopLevelDestination
+import com.hmoney.app.ui.screens.ai.AiScreen
 import com.hmoney.app.ui.screens.StatsScreen
 import com.hmoney.app.ui.screens.accounts.AccountsScreen
 import com.hmoney.app.ui.screens.overview.OverviewScreen
@@ -44,13 +47,23 @@ private const val WIZARD_ROUTE = "battery_wizard"
  * 附屬頁面（如續航設定精靈）不顯示底部導覽列。
  */
 @Composable
-fun HmoneyAppRoot(modifier: Modifier = Modifier) {
+fun HmoneyAppRoot(
+    modifier: Modifier = Modifier,
+    initialRoute: String? = null,
+) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
     val glassState = rememberHazeState()
 
     val isTopLevel = TopLevelDestination.entries.any { it.route == currentDestination?.route }
+
+    // 通知深連結：直接開啟對應頁面（例：AI 助手）
+    LaunchedEffect(initialRoute) {
+        if (initialRoute == AI_ASSISTANT_ROUTE) {
+            navController.navigate(AI_ASSISTANT_ROUTE)
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -131,10 +144,14 @@ fun HmoneyAppRoot(modifier: Modifier = Modifier) {
             composable(TopLevelDestination.SETTINGS.route) {
                 SettingsScreen(
                     onOpenWizard = { navController.navigate(WIZARD_ROUTE) },
+                    onOpenAi = { navController.navigate(AI_ASSISTANT_ROUTE) },
                 )
             }
             composable(WIZARD_ROUTE) {
                 BatteryWizardScreen(onBack = { navController.popBackStack() })
+            }
+            composable(AI_ASSISTANT_ROUTE) {
+                AiScreen(onBack = { navController.popBackStack() })
             }
         }
     }

@@ -11,6 +11,8 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- 僅於「通知與續航設定精靈」頁觸發的電池最佳化例外請求 -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- AI 分析 API 串接 -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:name=".HmoneyApp"

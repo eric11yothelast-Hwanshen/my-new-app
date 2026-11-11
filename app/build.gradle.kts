@@ -82,6 +82,11 @@ dependencies {
     implementation(libs.androidx.hilt.work)
     ksp(libs.androidx.hilt.compiler)
 
+    // AI API 串接（OpenAI 相容）：Retrofit + OkHttp；金鑰以 EncryptedSharedPreferences 保存
+    implementation(libs.retrofit)
+    implementation(libs.okhttp)
+    implementation(libs.androidx.security.crypto)
+
     // Haze 玻璃態視觉（API 33+ 完整效果，低版本自動降級）
     implementation(libs.haze.core)
     implementation(libs.haze.blur)
