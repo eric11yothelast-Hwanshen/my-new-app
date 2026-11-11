@@ -39,6 +39,14 @@ val hasReleaseSigning = keystoreFile?.exists() == true &&
     !keyAlias.isNullOrBlank() &&
     !keyPassword.isNullOrBlank()
 
+// 診斷輸出（不含任何機密值）
+println(
+    "HMONEY_SIGNING: hasReleaseSigning=$hasReleaseSigning, " +
+        "keystoreFileExists=${keystoreFile?.exists()}, " +
+        "hasInfo=${keystoreInfo != null}, " +
+        "envStore=${System.getenv("KEYSTORE_FILE") != null}",
+)
+
 android {
     namespace = "com.hmoney.app"
     compileSdk = 37
