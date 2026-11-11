@@ -32,7 +32,12 @@ jobs:
         run: ./gradlew testDebugUnitTest --no-daemon
 
       - name: Lint（Error 等級問題會讓建置失敗）
-        run: ./gradlew lintDebug --no-daemon
+        run: |
+          ./gradlew lintDebug --no-daemon || {
+            echo "===== Lint 錯誤清單 ====="
+            grep 'severity="Error"' app/build/reports/lint-results-debug.xml || cat app/build/reports/lint-results-debug.* || true
+            exit 1
+          }
 
       - name: Assemble debug APK
         run: ./gradlew assembleDebug --no-daemon
