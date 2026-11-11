@@ -26,7 +26,7 @@
   - **lint 自檢（CI lintDebug，Error 等級全數修畢，共 16 項）**：(1) Notifier 通知發送加權限標註（發送前本就有權限檢查）；(2) StatsAggregator 三處 LocalDate.ofInstant（需 API 34）改為全版本相容寫法；(3) 記帳／統計／明細／帳戶共 11 處按鈕事件內的字串改為組合期解析（畫面旋轉或語言切換不會取到過期字串）；(4) 深色主題的瀏海屬性加 API 版本標註。Warning 34 項與 hint 2 項不影響功能，予以保留觀察。
   - **建置結果**：CI 全綠（單元測試 23 案例＋lintDebug＋assembleDebug＋assembleRelease R8 簽章），新 Release v1.0.0-20261111163259 附 debug（23.2 MB）與 release（2.6 MB）雙 APK。
   - **重要決策（請勿誤改）**：(1) AddTransactionViewModel 的 AI 依賴使用 dagger.Lazy——原因：開啟記帳頁是高頻路徑，不應在進入時就建立 Retrofit／加密設定檔整條 AI 服務鏈（實機閃退的主要風險點），改為按下 AI 按鈕才建立；(2) callRaw 抽出 extractContent() 解析 choices[0].message.content——原因：API 回傳的是整包 HTTP JSON，不解析的話所有通用 AI 功能會顯示亂碼；此修法與 execute() 的 parseContent 各自獨立，後者處理存歷史的結構化分析，勿合併；(3) lintDebug 納入 CI 且 Error 等級擋建置——原因：本次靠它抓到 3 處 API 34 限定 API（舊手機統計頁潛在閃退），值得常駐。
-  - **部分完成與未完成**：閃退在無 logcat 下以風險點防護修復，實機待驗證；lint 尚餘 34 � Warning、2 � hint 未處理（不影響功能）。
+  - **部分完成與未完成**：閃退在無 logcat 下以風險點防護修復，實機待驗證；lint 尚餘 34 項 Warning、2 項 hint 未處理（不影響功能）。
   - **已知問題**：沙箱無 JDK/Android SDK，build 與 lint 一律由 GitHub Actions 執行；GitHub App 無法管理 Secrets（403），簽章走 .private/ 備援（公開倉庫前須輪替金鑰）。
   - **下一 session 起點**：若使用者提供 logcat，以日誌為準再修正；實機驗收清單＝五分頁可進入、快速記帳可開啟並儲存、編輯同一筆成功。
 - **Session 9（Bug 修復＋AI 全面整合，已完成）**：使用者追加需求，對應 SPEC 3.1（快速記帳 UI 修復）、3.5（AI 分析擴充為全 App 功能）。
