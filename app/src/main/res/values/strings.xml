@@ -222,6 +222,18 @@
     <string name="ai_error_unknown">發生未知錯誤，請再試一次</string>
     <string name="ai_open_assistant">開啟 AI 助手</string>
 
+    <!-- 備份 -->
+    <string name="backup_title">備份與還原</string>
+    <string name="backup_csv">匯出 CSV</string>
+    <string name="backup_json">完整 JSON 備份</string>
+    <string name="backup_restore">從 JSON 還原</string>
+    <string name="backup_latest">最近自動備份：%1$s</string>
+    <string name="backup_none">尚無自動備份（每日自動備份，保留近 7 份）</string>
+    <string name="backup_working">處理中…</string>
+    <string name="backup_success">完成</string>
+    <string name="backup_failed">操作失敗，請再試一次</string>
+    <string name="backup_restore_confirm">還原將覆蓋現有全部資料（帳戶、分類、交易、預算、週期交易），建議先做一次完整備份。確定要還原嗎？</string>
+
     <!-- 通用 -->
     <string name="common_delete">刪除</string>
     <string name="common_cancel">取消</string>

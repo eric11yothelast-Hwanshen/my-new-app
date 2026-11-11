@@ -94,4 +94,7 @@ dependencies {
 
     // 開發期工具
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    // 單元測試
+    testImplementation(libs.junit)
 }

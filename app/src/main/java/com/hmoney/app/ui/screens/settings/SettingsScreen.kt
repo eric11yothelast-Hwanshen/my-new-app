@@ -42,6 +42,7 @@ import com.hmoney.app.domain.model.RecurringFrequency
 import com.hmoney.app.domain.model.TransactionType
 import com.hmoney.app.ui.common.AmountParser
 import com.hmoney.app.ui.common.Formats
+import com.hmoney.app.domain.logic.BudgetEvaluator
 import com.hmoney.app.ui.components.FluidSwitch
 import com.hmoney.app.ui.components.GlassCard
 import com.hmoney.app.ui.components.glassSource
@@ -146,6 +147,9 @@ fun SettingsScreen(
 
         // ===== AI 連線 =====
         AiSection(aiViewModel, onOpenAi)
+
+        // ===== 備份與還原 =====
+        BackupSection()
     }
 }
 
@@ -214,11 +218,11 @@ private fun AiSection(
 
 /** 預算進度條顏色：80% 警示色、100% 轉紅 */
 @Composable
-private fun progressColor(level: BudgetViewModel.BudgetProgress.Level): androidx.compose.ui.graphics.Color =
+private fun progressColor(level: BudgetEvaluator.Level): androidx.compose.ui.graphics.Color =
     when (level) {
-        BudgetViewModel.BudgetProgress.Level.NORMAL -> MaterialTheme.colorScheme.primary
-        BudgetViewModel.BudgetProgress.Level.WARNING -> androidx.compose.ui.graphics.Color(0xFFFFA726)
-        BudgetViewModel.BudgetProgress.Level.OVER -> MaterialTheme.colorScheme.error
+        BudgetEvaluator.Level.NORMAL -> MaterialTheme.colorScheme.primary
+        BudgetEvaluator.Level.WARNING -> androidx.compose.ui.graphics.Color(0xFFFFA726)
+        BudgetEvaluator.Level.OVER -> MaterialTheme.colorScheme.error
     }
 
 @Composable
@@ -270,7 +274,7 @@ private fun BudgetSection(viewModel: BudgetViewModel) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    if (state.totalBudget.level == BudgetViewModel.BudgetProgress.Level.OVER) {
+                    if (state.totalBudget.level == BudgetEvaluator.Level.OVER) {
                         Text(
                             text = stringResource(R.string.budget_over),
                             style = MaterialTheme.typography.bodySmall,

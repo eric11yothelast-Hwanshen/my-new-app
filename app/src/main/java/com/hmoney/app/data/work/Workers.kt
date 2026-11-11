@@ -234,3 +234,19 @@ class RecurringGenerationWorker @AssistedInject constructor(
         return Result.success()
     }
 }
+
+/**
+ * 每日自動備份 Worker：備份到本地並保留近 7 份。
+ */
+@HiltWorker
+class BackupWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val backupManager: com.hmoney.app.data.backup.BackupManager,
+) : CoroutineWorker(context, params) {
+
+    override suspend fun doWork(): Result {
+        val result = backupManager.runDailyBackup()
+        return if (result.isSuccess) Result.success() else Result.retry()
+    }
+}

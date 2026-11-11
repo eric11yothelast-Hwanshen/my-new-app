@@ -38,6 +38,7 @@ import com.hmoney.app.ui.components.GlassCard
 import com.hmoney.app.ui.components.RankRow
 import com.hmoney.app.ui.components.TrendBarChart
 import com.hmoney.app.ui.components.glassSource
+import com.hmoney.app.domain.logic.StatsAggregator
 import com.hmoney.app.ui.screens.stats.StatsViewModel
 import dev.chrisbanes.haze.rememberHazeState
 
@@ -71,7 +72,7 @@ fun StatsScreen(
                 )
 
                 // 時間維度切換：日／週／月／年
-                val periods = StatsViewModel.Period.entries
+                val periods = StatsAggregator.Period.entries
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     periods.forEachIndexed { index, p ->
                         SegmentedButton(
@@ -85,10 +86,10 @@ fun StatsScreen(
                                 Text(
                                     stringResource(
                                         when (p) {
-                                            StatsViewModel.Period.DAY -> R.string.stats_period_day
-                                            StatsViewModel.Period.WEEK -> R.string.stats_period_week
-                                            StatsViewModel.Period.MONTH -> R.string.stats_period_month
-                                            StatsViewModel.Period.YEAR -> R.string.stats_period_year
+                                            StatsAggregator.Period.DAY -> R.string.stats_period_day
+                                            StatsAggregator.Period.WEEK -> R.string.stats_period_week
+                                            StatsAggregator.Period.MONTH -> R.string.stats_period_month
+                                            StatsAggregator.Period.YEAR -> R.string.stats_period_year
                                         },
                                     ),
                                 )

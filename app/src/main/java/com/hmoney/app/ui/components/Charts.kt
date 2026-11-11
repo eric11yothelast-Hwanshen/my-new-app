@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hmoney.app.ui.common.Formats
+import com.hmoney.app.domain.logic.StatsAggregator
 import com.hmoney.app.ui.screens.stats.StatsViewModel
 
 /**
@@ -26,7 +27,7 @@ import com.hmoney.app.ui.screens.stats.StatsViewModel
 /** 支出分類占比：環圈圖 */
 @Composable
 fun DonutChart(
-    slices: List<StatsViewModel.CategorySlice>,
+    slices: List<StatsAggregator.CategorySlice>,
     modifier: Modifier = Modifier,
 ) {
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
@@ -74,7 +75,7 @@ fun DonutChart(
 /** 收支趨勢：成對長條圖（收入／支出） */
 @Composable
 fun TrendBarChart(
-    buckets: List<StatsViewModel.TrendBucket>,
+    buckets: List<StatsAggregator.TrendBucket>,
     modifier: Modifier = Modifier,
     incomeColor: Color = MaterialTheme.colorScheme.tertiary,
     expenseColor: Color = MaterialTheme.colorScheme.error,
@@ -112,7 +113,7 @@ fun TrendBarChart(
 @Composable
 fun RankRow(
     rank: Int,
-    entry: StatsViewModel.RankEntry,
+    entry: StatsAggregator.RankEntry,
     maxCents: Long,
     modifier: Modifier = Modifier,
 ) {

@@ -38,6 +38,13 @@ class WorkScheduler @Inject constructor(
             PeriodicWorkRequestBuilder<BudgetCheckWorker>(Duration.ofDays(1)).build(),
         )
 
+        // 每日自動本地備份（保留近 7 份，由 BackupManager 清理）
+        workManager.enqueueUniquePeriodicWork(
+            "daily_backup",
+            ExistingPeriodicWorkPolicy.UPDATE,
+            PeriodicWorkRequestBuilder<BackupWorker>(Duration.ofDays(1)).build(),
+        )
+
         // 每週摘要：每週日 20:00（對齊到下次週日 20:00 起算）
         val now = LocalDateTime.now()
         var next = now.toLocalDate().with(DayOfWeek.SUNDAY).atTime(20, 0)

@@ -28,4 +28,10 @@ interface AccountDao {
 
     @Query("DELETE FROM accounts WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Insert
+    suspend fun insertAll(accounts: List<AccountEntity>)
+
+    @Query("DELETE FROM accounts")
+    suspend fun deleteAll()
 }

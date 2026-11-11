@@ -28,4 +28,10 @@ interface RecurringTransactionDao {
 
     @Query("DELETE FROM recurring_transactions WHERE id = :id")
     suspend fun deleteById(id: Long)
+
+    @Insert
+    suspend fun insertAll(items: List<RecurringTransactionEntity>)
+
+    @Query("DELETE FROM recurring_transactions")
+    suspend fun deleteAll()
 }

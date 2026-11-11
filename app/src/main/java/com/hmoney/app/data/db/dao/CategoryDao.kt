@@ -25,4 +25,10 @@ interface CategoryDao {
 
     @Update
     suspend fun update(category: CategoryEntity)
+
+    @Insert
+    suspend fun insertAll(categories: List<CategoryEntity>)
+
+    @Query("DELETE FROM categories")
+    suspend fun deleteAll()
 }

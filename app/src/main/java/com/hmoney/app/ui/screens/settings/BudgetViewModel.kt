@@ -2,7 +2,8 @@ package com.hmoney.app.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.hmoney.app.domain.model.Budget
+import com.hmoney.app.domain.logic.BudgetEvaluator
+import com.hmoney.app.domain.model.BudgetType
 import com.hmoney.app.domain.model.Category
 import com.hmoney.app.domain.model.CategoryType
 import com.hmoney.app.domain.model.TransactionType
@@ -21,27 +22,20 @@ import javax.inject.Inject
 
 /**
  * 預算 ViewModel：月總預算＋各分類預算，含本月支出進度
- * （80% 轉警示色、100% 轉紅）。
+ * （80% 轉警示色、100% 轉紅）。判斷邏輯委派 BudgetEvaluator（可單元測試）。
  */
 @HiltViewModel
 class BudgetViewModel @Inject constructor(
     private val budgetRepository: BudgetRepository,
     categoryRepository: CategoryRepository,
     transactionRepository: TransactionRepository,
+    private val evaluator: BudgetEvaluator,
 ) : ViewModel() {
 
-    data class BudgetProgress(
-        val budgetCents: Long,
-        val spentCents: Long,
-        val ratio: Float,
-        val level: Level,
-    ) {
-        enum class Level { NORMAL, WARNING, OVER }
-    }
-
     data class UiState(
-        val totalBudget: BudgetProgress = BudgetProgress(0L, 0L, 0f, BudgetProgress.Level.NORMAL),
-        val categoryProgress: List<Pair<Category, BudgetProgress>> = emptyList(),
+        val totalBudget: BudgetEvaluator.BudgetProgress =
+            BudgetEvaluator.BudgetProgress(0L, 0L, 0f, BudgetEvaluator.Level.NORMAL),
+        val categoryProgress: List<Pair<Category, BudgetEvaluator.BudgetProgress>> = emptyList(),
         val categories: List<Category> = emptyList(),
     )
 
@@ -65,30 +59,17 @@ class BudgetViewModel @Inject constructor(
             .mapValues { (_, txs) -> txs.sumOf { it.amountCents } }
         val totalSpent = monthExpenses.sumOf { it.amountCents }
 
-        fun progressOf(budgetCents: Long, spentCents: Long): BudgetProgress {
-            val ratio = if (budgetCents == 0L) 0f
-            else spentCents.toFloat() / budgetCents
-            val level = when {
-                budgetCents == 0L -> BudgetProgress.Level.NORMAL
-                ratio >= 1f -> BudgetProgress.Level.OVER
-                ratio >= 0.8f -> BudgetProgress.Level.WARNING
-                else -> BudgetProgress.Level.NORMAL
-            }
-            return BudgetProgress(budgetCents, spentCents, ratio, level)
-        }
-
-        val categoryBudgets = budgets.filter { it.type == com.hmoney.app.domain.model.BudgetType.CATEGORY }
+        val categoryBudgets = budgets.filter { it.type == BudgetType.CATEGORY }
             .associateBy { it.categoryId }
 
         UiState(
-            totalBudget = progressOf(
-                budgets.firstOrNull { it.type == com.hmoney.app.domain.model.BudgetType.TOTAL }
-                    ?.amountCents ?: 0L,
+            totalBudget = evaluator.evaluate(
+                budgets.firstOrNull { it.type == BudgetType.TOTAL }?.amountCents ?: 0L,
                 totalSpent,
             ),
             categoryProgress = categories.map { category ->
                 val budget = categoryBudgets[category.id]?.amountCents ?: 0L
-                category to progressOf(budget, spentByCategory[category.id] ?: 0L)
+                category to evaluator.evaluate(budget, spentByCategory[category.id] ?: 0L)
             },
             categories = categories,
         )
