@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,6 +40,7 @@ import java.time.LocalTime
 /**
  * 通知區塊：每日記帳提醒（開關＋時間）、通知權限動態請求與被拒時的引導。
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun NotificationSection(
     viewModel: NotificationViewModel = hiltViewModel(),
