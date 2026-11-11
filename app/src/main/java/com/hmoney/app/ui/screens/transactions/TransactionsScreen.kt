@@ -285,10 +285,8 @@ fun TransactionsScreen(
     // 期間篩選對話框
     if (showDateRange) {
         val pickerState = rememberDateRangePickerState(
-            initialSelectedStartDate = state.filters.startDate
-                ?.let { Formats.toLocalDate(it) },
-            initialSelectedEndDate = state.filters.endDate
-                ?.let { Formats.toLocalDate(it) },
+            initialSelectedStartDateMillis = state.filters.startDate,
+            initialSelectedEndDateMillis = state.filters.endDate,
         )
         AlertDialog(
             onDismissRequest = { showDateRange = false },
@@ -304,12 +302,11 @@ fun TransactionsScreen(
                 TextButton(
                     onClick = {
                         // 期間以「日」為單位：起始日 00:00 ～結束日 23:59
-                        val startMillis = pickerState.selectedStartDate
-                            ?.atStartOfDay(java.time.ZoneId.systemDefault())
-                            ?.toInstant()?.toEpochMilli()
-                        val endMillis = pickerState.selectedEndDate
-                            ?.plusDays(1)?.atStartOfDay(java.time.ZoneId.systemDefault())
-                            ?.toInstant()?.toEpochMilli()?.let { it - 1 }
+                        val startMillis = pickerState.selectedStartDateMillis
+                        val endMillis = pickerState.selectedEndDateMillis
+                            ?.let { Formats.toLocalDate(it).plusDays(1)
+                                .atStartOfDay(java.time.ZoneId.systemDefault())
+                                .toInstant().toEpochMilli() - 1 }
                         viewModel.setDateRange(startMillis, endMillis)
                         showDateRange = false
                     },
