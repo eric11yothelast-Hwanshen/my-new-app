@@ -26,11 +26,13 @@ import dev.chrisbanes.haze.hazeSource
  */
 
 /** 標記為模糊來源（放在可捲動內容的最上層容器） */
+@Composable
 fun Modifier.glassSource(state: HazeState): Modifier = this.hazeSource(state)
 
 /**
  * 玻璃表面修飾詞：API 33+ 背景模糊；低版本半透明壓色＋描邊。
  */
+@Composable
 fun Modifier.glassSurface(
     state: HazeState,
     fallbackColor: Color,
