@@ -26,7 +26,7 @@ data class AiAnalysis(
     val createdAtEpochMillis: Long,
     val query: String,
     val summary: String,
-    val insights: List<String>,
-    val anomalies: List<String>,
-    val tips: List<String>,
+    val insights: List<String> = emptyList(),
+    val anomalies: List<String> = emptyList(),
+    val tips: List<String> = emptyList(),
 )
