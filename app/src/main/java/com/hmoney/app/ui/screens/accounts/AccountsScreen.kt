@@ -87,7 +87,6 @@ fun AccountsScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var hideTarget by remember { mutableStateOf<Account?>(null) }
     var showAiSheet by remember { mutableStateOf(false) }
-    val aiContext = androidx.compose.ui.platform.LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val deleteBlockedMessage = stringResource(R.string.accounts_delete_fail)
@@ -123,6 +122,7 @@ fun AccountsScreen(
             )
 
             // AI 解讀帳戶：餘額變化與現金流建議
+            val analyzeTitle = stringResource(R.string.ai_analyze_accounts)
             AssistChip(
                 onClick = {
                     val data = state.accountsWithBalance.joinToString("\n") { (account, balance) ->
@@ -130,7 +130,7 @@ fun AccountsScreen(
                             "${Formats.moneyWithCurrency(balance, account.currency)}"
                     }
                     aiViewModel.runText(
-                        title = aiContext.getString(R.string.ai_analyze_accounts),
+                        title = analyzeTitle,
                         data = data,
                     )
                 },

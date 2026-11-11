@@ -274,11 +274,12 @@ fun TransactionsScreen(
                         Text(stringResource(R.string.transactions_filter_all))
                     }
                 }
+                val expenseLabel = stringResource(R.string.add_type_expense)
+                val incomeLabel = stringResource(R.string.add_type_income)
+                val transferLabel = stringResource(R.string.add_type_transfer)
+                val analyzeTitle = stringResource(R.string.ai_analyze_batch)
                 AssistChip(
                     onClick = {
-                        val expenseLabel = context.getString(R.string.add_type_expense)
-                        val incomeLabel = context.getString(R.string.add_type_income)
-                        val transferLabel = context.getString(R.string.add_type_transfer)
                         val data = state.groups
                             .flatMap { it.transactions }
                             .take(50)
@@ -295,7 +296,7 @@ fun TransactionsScreen(
                                     "$accountName $categoryName ${Formats.money(tx.amountCents)} ${tx.note}"
                             }
                         aiViewModel.runText(
-                            title = context.getString(R.string.ai_analyze_batch),
+                            title = analyzeTitle,
                             data = data,
                         )
                     },

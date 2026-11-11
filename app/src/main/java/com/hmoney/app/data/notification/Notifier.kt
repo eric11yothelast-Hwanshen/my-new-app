@@ -88,6 +88,7 @@ class Notifier @Inject constructor(
             Manifest.permission.POST_NOTIFICATIONS,
         ) == PackageManager.PERMISSION_GRANTED
 
+    @android.annotation.SuppressLint("MissingPermission")
     fun post(
         channelId: String,
         notificationId: Int,

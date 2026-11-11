@@ -68,7 +68,6 @@ fun StatsScreen(
     val aiState by aiViewModel.uiState.collectAsState()
     val glassState = rememberHazeState()
     var showAiSheet by remember { mutableStateOf(false) }
-    val context = androidx.compose.ui.platform.LocalContext.current
 
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
@@ -165,16 +164,17 @@ fun StatsScreen(
                 }
 
                 // AI 分析本期：將該期間的分類統計送給 AI 解讀
+                val periodLabel = stringResource(
+                    when (state.period) {
+                        StatsAggregator.Period.DAY -> R.string.stats_period_day
+                        StatsAggregator.Period.WEEK -> R.string.stats_period_week
+                        StatsAggregator.Period.MONTH -> R.string.stats_period_month
+                        StatsAggregator.Period.YEAR -> R.string.stats_period_year
+                    },
+                )
+                val analyzeTitle = stringResource(R.string.ai_analyze_period)
                 AssistChip(
                     onClick = {
-                        val periodLabel = context.getString(
-                            when (state.period) {
-                                StatsAggregator.Period.DAY -> R.string.stats_period_day
-                                StatsAggregator.Period.WEEK -> R.string.stats_period_week
-                                StatsAggregator.Period.MONTH -> R.string.stats_period_month
-                                StatsAggregator.Period.YEAR -> R.string.stats_period_year
-                            },
-                        )
                         val slices = state.categorySlices.joinToString("\n") { slice ->
                             "- ${slice.category.name}：${Formats.money(slice.cents)}" +
                                 "（占 ${(slice.ratio * 100).toInt()}%）"
@@ -188,7 +188,7 @@ fun StatsScreen(
                             "總收入：${Formats.money(state.totalIncomeCents)}\n" +
                             "支出分類占比：\n$slices\n分類排行（含前期比較）：\n$ranking"
                         aiViewModel.runText(
-                            title = context.getString(R.string.ai_analyze_period),
+                            title = analyzeTitle,
                             data = data,
                         )
                     },

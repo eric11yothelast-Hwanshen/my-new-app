@@ -153,7 +153,7 @@ class StatsAggregator @Inject constructor() {
         Period.WEEK -> (0..6).map { offset ->
             val day = today.with(DayOfWeek.MONDAY).plusDays(offset.toLong())
             val cents = transactions.filter {
-                LocalDate.ofInstant(Instant.ofEpochMilli(it.dateEpochMillis), zone) == day
+                Instant.ofEpochMilli(it.dateEpochMillis).atZone(zone).toLocalDate() == day
             }
             TrendBucket(
                 label = day.dayOfWeek.name.take(3),
@@ -166,7 +166,7 @@ class StatsAggregator @Inject constructor() {
         Period.MONTH -> (1..today.lengthOfMonth()).map { day ->
             // 以日期比對（同年同月同日）
             val dayTx = transactions.filter {
-                val d = LocalDate.ofInstant(Instant.ofEpochMilli(it.dateEpochMillis), zone)
+                val d = Instant.ofEpochMilli(it.dateEpochMillis).atZone(zone).toLocalDate()
                 d.year == today.year && d.month == today.month && d.dayOfMonth == day
             }
             TrendBucket(
@@ -179,7 +179,7 @@ class StatsAggregator @Inject constructor() {
         }
         Period.YEAR -> (1..12).map { month ->
             val cents = transactions.filter {
-                val d = LocalDate.ofInstant(Instant.ofEpochMilli(it.dateEpochMillis), zone)
+                val d = Instant.ofEpochMilli(it.dateEpochMillis).atZone(zone).toLocalDate()
                 YearMonth.from(d) == YearMonth.of(today.year, month)
             }
             TrendBucket(

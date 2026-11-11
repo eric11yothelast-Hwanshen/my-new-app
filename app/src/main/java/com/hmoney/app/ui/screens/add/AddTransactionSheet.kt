@@ -97,29 +97,36 @@ fun AddTransactionSheet(
         }
     }
 
+    // 提示字串於組合期解析（設定變更時自動更新，避免 LocalContext 取到過期資源）
+    val errorText = form.errorRes?.let { stringResource(it) }
+    val aiAppliedMessage = stringResource(R.string.ai_applied)
+    val aiNeedNoteMessage = stringResource(R.string.ai_need_note)
+    val aiErrorMessage = (state.aiState as? AddTransactionViewModel.AiState.Error)
+        ?.let { stringResource(it.error.toMessageRes()) }
+
     // 驗證失敗提示（Snackbar，取代佔空間的行內錯誤）
     LaunchedEffect(form.errorRes) {
-        form.errorRes?.let { errorRes ->
-            snackbarHostState.showSnackbar(context.getString(errorRes))
+        errorText?.let {
+            snackbarHostState.showSnackbar(it)
             viewModel.clearError()
         }
     }
 
     // AI 建議回饋
     LaunchedEffect(state.aiState) {
-        when (val ai = state.aiState) {
+        when (state.aiState) {
             AddTransactionViewModel.AiState.Done -> {
-                snackbarHostState.showSnackbar(context.getString(R.string.ai_applied))
+                snackbarHostState.showSnackbar(aiAppliedMessage)
                 viewModel.clearAiState()
             }
 
             AddTransactionViewModel.AiState.NeedNote -> {
-                snackbarHostState.showSnackbar(context.getString(R.string.ai_need_note))
+                snackbarHostState.showSnackbar(aiNeedNoteMessage)
                 viewModel.clearAiState()
             }
 
             is AddTransactionViewModel.AiState.Error -> {
-                snackbarHostState.showSnackbar(context.getString(ai.error.toMessageRes()))
+                aiErrorMessage?.let { snackbarHostState.showSnackbar(it) }
                 viewModel.clearAiState()
             }
 
