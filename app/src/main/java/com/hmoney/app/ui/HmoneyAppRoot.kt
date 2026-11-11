@@ -1,8 +1,15 @@
 package com.hmoney.app.ui
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -10,6 +17,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -17,27 +26,40 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.hmoney.app.ui.components.glassSource
+import com.hmoney.app.ui.components.glassSurface
 import com.hmoney.app.ui.navigation.TopLevelDestination
-import com.hmoney.app.ui.screens.AccountsScreen
-import com.hmoney.app.ui.screens.OverviewScreen
-import com.hmoney.app.ui.screens.SettingsScreen
 import com.hmoney.app.ui.screens.StatsScreen
-import com.hmoney.app.ui.screens.TransactionsScreen
+import com.hmoney.app.ui.screens.accounts.AccountsScreen
+import com.hmoney.app.ui.screens.overview.OverviewScreen
+import com.hmoney.app.ui.screens.settings.SettingsScreen
+import com.hmoney.app.ui.screens.transactions.TransactionsScreen
+import dev.chrisbanes.haze.rememberHazeState
 
 /**
- * App 主框架：底部導覽列（5 頁）＋ Navigation Compose。
- * 玻璃態視覺與動效將於 UI 全面實作階段套用。
+ * App 主框架：玻璃態底部導覽列（5 頁）＋ Navigation Compose spring 轉場動畫。
  */
 @Composable
 fun HmoneyAppRoot(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = backStackEntry?.destination
+    val glassState = rememberHazeState()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            NavigationBar {
+            // 玻璃態底部導覽列：API 33+ 背景模糊，低版本半透明壓色
+            NavigationBar(
+                containerColor = Color.Transparent,
+                modifier = Modifier.glassSurface(
+                    state = glassState,
+                    fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                    outlineColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                    cornerRadius = 0.dp,
+                ),
+            ) {
                 TopLevelDestination.entries.forEach { destination ->
                     val selected = currentDestination?.hierarchy?.any {
                         it.route == destination.route
@@ -68,7 +90,31 @@ fun HmoneyAppRoot(modifier: Modifier = Modifier) {
         NavHost(
             navController = navController,
             startDestination = TopLevelDestination.OVERVIEW.route,
-            modifier = Modifier.padding(innerPadding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .glassSource(glassState),
+            // spring 物理轉場動畫
+            enterTransition = {
+                slideInVertically(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                    initialOffsetY = { it / 12 },
+                ) + fadeIn()
+            },
+            exitTransition = { fadeOut() },
+            popEnterTransition = { fadeIn() },
+            popExitTransition = {
+                slideOutVertically(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow,
+                    ),
+                    targetOffsetY = { it / 12 },
+                ) + fadeOut()
+            },
         ) {
             composable(TopLevelDestination.OVERVIEW.route) { OverviewScreen() }
             composable(TopLevelDestination.TRANSACTIONS.route) { TransactionsScreen() }

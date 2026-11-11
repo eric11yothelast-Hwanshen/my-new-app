@@ -37,6 +37,18 @@ class AccountRepositoryImpl @Inject constructor(
             accounts.map { it.toDomain() to (balances[it.id] ?: 0L) }
         }
 
+    override fun observeAllWithBalance(): Flow<List<Pair<Account, Long>>> =
+        combine(
+            accountDao.observeAll(),
+            transactionDao.observeFiltered(),
+        ) { accounts, transactions ->
+            val balances = balanceCalculator.computeBalances(
+                accounts = accounts.map { it.toDomain() },
+                transactions = transactions.map { it.toDomain() },
+            )
+            accounts.map { it.toDomain() to (balances[it.id] ?: 0L) }
+        }
+
     override fun observeAll(): Flow<List<Account>> =
         accountDao.observeAll().map { list -> list.map { it.toDomain() } }
 

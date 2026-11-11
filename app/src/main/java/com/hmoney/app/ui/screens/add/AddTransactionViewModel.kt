@@ -1,0 +1,209 @@
+package com.hmoney.app.ui.screens.add
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.hmoney.app.R
+import com.hmoney.app.domain.model.Account
+import com.hmoney.app.domain.model.Category
+import com.hmoney.app.domain.model.CategoryType
+import com.hmoney.app.domain.model.MoneyTransaction
+import com.hmoney.app.domain.model.TransactionType
+import com.hmoney.app.domain.repository.AccountRepository
+import com.hmoney.app.domain.repository.CategoryRepository
+import com.hmoney.app.domain.repository.TransactionRepository
+import com.hmoney.app.ui.common.AmountParser
+import com.hmoney.app.ui.common.Formats
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
+import javax.inject.Inject
+
+/**
+ * 新增／編輯交易 ViewModel：數字鍵盤為主的輸入流程，含完整防呆驗證。
+ */
+@HiltViewModel
+class AddTransactionViewModel @Inject constructor(
+    private val transactionRepository: TransactionRepository,
+    accountRepository: AccountRepository,
+    categoryRepository: CategoryRepository,
+) : ViewModel() {
+
+    data class FormState(
+        val editingId: Long? = null,
+        val type: TransactionType = TransactionType.EXPENSE,
+        val amountText: String = "",
+        val feeText: String = "",
+        val accountId: Long? = null,
+        val toAccountId: Long? = null,
+        val categoryId: Long? = null,
+        val date: LocalDate = LocalDate.now(),
+        val time: LocalTime = LocalTime.now(),
+        val note: String = "",
+        val tagsText: String = "",
+        val errorRes: Int? = null,
+    )
+
+    data class UiState(
+        val form: FormState = FormState(),
+        val accounts: List<Account> = emptyList(),
+        val categories: List<Category> = emptyList(),
+    )
+
+    private val form = MutableStateFlow(FormState())
+
+    val uiState: StateFlow<UiState> = combine(
+        form,
+        accountRepository.observeVisibleWithBalance(),
+        categoryRepository.observeAll(CategoryType.EXPENSE),
+        categoryRepository.observeAll(CategoryType.INCOME),
+    ) { f, accounts, expenseCategories, incomeCategories ->
+        UiState(
+            form = f,
+            accounts = accounts.map { it.first },
+            // 依目前類型顯示對應分類
+            categories = when (f.type) {
+                TransactionType.EXPENSE -> expenseCategories
+                TransactionType.INCOME -> incomeCategories
+                TransactionType.TRANSFER -> emptyList()
+            },
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = UiState(),
+    )
+
+    init {
+        // 預設帳戶：第一個可見帳戶
+        viewModelScope.launch {
+            accountRepository.observeVisibleWithBalance().collect { accounts ->
+                if (form.value.accountId == null && accounts.isNotEmpty()) {
+                    form.update { it.copy(accountId = accounts.first().first.id) }
+                }
+            }
+        }
+    }
+
+    fun loadForEdit(transactionId: Long) {
+        if (form.value.editingId == transactionId) return
+        viewModelScope.launch {
+            val tx = transactionRepository.getTransaction(transactionId) ?: return@launch
+            val dateTime = java.time.Instant.ofEpochMilli(tx.dateEpochMillis)
+                .atZone(ZoneId.systemDefault())
+            form.value = FormState(
+                editingId = tx.id,
+                type = tx.type,
+                amountText = Formats.plain(tx.amountCents),
+                feeText = if (tx.feeCents > 0) Formats.plain(tx.feeCents) else "",
+                accountId = tx.accountId,
+                toAccountId = tx.toAccountId,
+                categoryId = tx.categoryId,
+                date = dateTime.toLocalDate(),
+                time = dateTime.toLocalTime(),
+                note = tx.note,
+                tagsText = tx.tags.joinToString(","),
+            )
+        }
+    }
+
+    fun reset() {
+        form.value = FormState()
+    }
+
+    fun setType(type: TransactionType) = form.update { it.copy(type = type, categoryId = null) }
+
+    fun onKeypadInput(digit: Char) = form.update { f ->
+        when {
+            digit == '.' && f.amountText.contains('.') -> f
+            digit == '.' -> f.copy(amountText = f.amountText.ifEmpty { "0" } + ".")
+            f.amountText.contains('.') &&
+                f.amountText.substringAfter('.').length >= 2 -> f
+            f.amountText == "0" && digit != '.' -> f.copy(amountText = digit.toString())
+            else -> f.copy(amountText = f.amountText + digit)
+        }
+    }
+
+    fun onKeypadBackspace() = form.update { f ->
+        f.copy(amountText = f.amountText.dropLast(1))
+    }
+
+    fun setFee(fee: String) = form.update {
+        it.copy(feeText = fee.filter { c -> c.isDigit() || c == '.' })
+    }
+
+    fun setAccount(id: Long) = form.update { it.copy(accountId = id) }
+
+    fun setToAccount(id: Long) = form.update { it.copy(toAccountId = id) }
+
+    fun setCategory(id: Long) = form.update { it.copy(categoryId = id) }
+
+    fun setDate(date: LocalDate) = form.update { it.copy(date = date) }
+
+    fun setTime(time: LocalTime) = form.update { it.copy(time = time) }
+
+    fun setNote(note: String) = form.update { it.copy(note = note) }
+
+    fun setTags(tags: String) = form.update { it.copy(tagsText = tags) }
+
+    /** 儲存：驗證失敗回傳錯誤字串資源，成功回傳 null 並關閉表單 */
+    fun save(onSaved: () -> Unit) {
+        val f = form.value
+        val amountCents = AmountParser.toCents(f.amountText)
+        when {
+            amountCents == null || amountCents < 0 ->
+                form.update { it.copy(errorRes = R.string.add_error_amount) }
+            f.accountId == null ->
+                form.update { it.copy(errorRes = R.string.add_error_account) }
+            f.type != TransactionType.TRANSFER && f.categoryId == null ->
+                form.update { it.copy(errorRes = R.string.add_error_category) }
+            f.type == TransactionType.TRANSFER && f.toAccountId == null ->
+                form.update { it.copy(errorRes = R.string.add_error_account) }
+            f.type == TransactionType.TRANSFER && f.toAccountId == f.accountId ->
+                form.update { it.copy(errorRes = R.string.add_error_same_account) }
+            else -> {
+                val feeCents = if (f.feeText.isBlank()) 0L else AmountParser.toCents(f.feeText) ?: 0L
+                val dateMillis = f.date.atTime(f.time)
+                    .atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val tags = f.tagsText.split(',', '，')
+                    .map { it.trim() }.filter { it.isNotEmpty() }
+                // 前面 when 已驗證非空
+                val accountId = f.accountId!!
+                val transaction = MoneyTransaction(
+                    id = f.editingId ?: 0L,
+                    type = f.type,
+                    amountCents = amountCents,
+                    accountId = accountId,
+                    toAccountId = if (f.type == TransactionType.TRANSFER) f.toAccountId else null,
+                    categoryId = if (f.type == TransactionType.TRANSFER) null else f.categoryId,
+                    feeCents = feeCents,
+                    dateEpochMillis = dateMillis,
+                    note = f.note.trim(),
+                    tags = tags,
+                )
+                viewModelScope.launch {
+                    try {
+                        if (f.editingId == null) {
+                            transactionRepository.addTransaction(transaction)
+                        } else {
+                            transactionRepository.updateTransaction(transaction)
+                        }
+                        reset()
+                        onSaved()
+                    } catch (e: IllegalArgumentException) {
+                        form.update { it.copy(errorRes = R.string.add_error_generic) }
+                    }
+                }
+            }
+        }
+    }
+
+    fun clearError() = form.update { it.copy(errorRes = null) }
+}

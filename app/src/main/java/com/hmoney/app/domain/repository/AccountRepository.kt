@@ -9,6 +9,9 @@ interface AccountRepository {
     /** 觀察可見帳戶（含各自即時餘額） */
     fun observeVisibleWithBalance(): Flow<List<Pair<Account, Long>>>
 
+    /** 觀察全部帳戶（含隱藏，含各自即時餘額） */
+    fun observeAllWithBalance(): Flow<List<Pair<Account, Long>>>
+
     /** 觀察全部帳戶（含隱藏） */
     fun observeAll(): Flow<List<Account>>
 
