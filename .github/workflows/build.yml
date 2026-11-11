@@ -31,6 +31,9 @@ jobs:
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest --no-daemon
 
+      - name: Lint（Error 等級問題會讓建置失敗）
+        run: ./gradlew lintDebug --no-daemon
+
       - name: Assemble debug APK
         run: ./gradlew assembleDebug --no-daemon
 

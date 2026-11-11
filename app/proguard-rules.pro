@@ -5,3 +5,11 @@
 
 # javax 註解（部分來源套件僅編譯期引用）
 -dontwarn javax.annotation.**
+
+# AI 介面（Retrofit 動態代理）：保留介面方法與註解，避免 release 混淆後閃退
+-keep interface com.hmoney.app.data.ai.AiApi { *; }
+-keepattributes Signature, InnerClasses, EnclosingMethod, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations, AnnotationDefault
+-dontwarn okhttp3.internal.platform.**
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.openjsse.**

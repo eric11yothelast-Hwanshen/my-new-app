@@ -46,16 +46,24 @@ class AiChatViewModel @Inject constructor(
             error = null,
         )
         job = viewModelScope.launch {
-            when (val result = aiRepository.chat(q)) {
-                is AiTextResult.Success -> _uiState.value = _uiState.value.copy(
-                    messages = _uiState.value.messages +
-                        AiChatMessage(isUser = false, text = result.text),
-                    loading = false,
-                )
+            try {
+                when (val result = aiRepository.chat(q)) {
+                    is AiTextResult.Success -> _uiState.value = _uiState.value.copy(
+                        messages = _uiState.value.messages +
+                            AiChatMessage(isUser = false, text = result.text),
+                        loading = false,
+                    )
 
-                is AiTextResult.Failure -> _uiState.value = _uiState.value.copy(
+                    is AiTextResult.Failure -> _uiState.value = _uiState.value.copy(
+                        loading = false,
+                        error = result.error,
+                    )
+                }
+            } catch (t: Throwable) {
+                android.util.Log.e(TAG, "AI 對話失敗", t)
+                _uiState.value = _uiState.value.copy(
                     loading = false,
-                    error = result.error,
+                    error = com.hmoney.app.domain.model.AiError.Network,
                 )
             }
         }
@@ -68,5 +76,9 @@ class AiChatViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    private companion object {
+        private const val TAG = "AiChatVM"
     }
 }

@@ -54,9 +54,14 @@ class AiViewModel @Inject constructor(
         if (_analysisState.value is AnalysisUiState.Loading) return
         _analysisState.value = AnalysisUiState.Loading
         viewModelScope.launch {
-            _analysisState.value = when (val outcome = aiRepository.analyzeWeek()) {
-                is AiOutcome.Success -> AnalysisUiState.Success(outcome.analysis)
-                is AiOutcome.Failure -> AnalysisUiState.Error(outcome.error.toMessageRes())
+            try {
+                _analysisState.value = when (val outcome = aiRepository.analyzeWeek()) {
+                    is AiOutcome.Success -> AnalysisUiState.Success(outcome.analysis)
+                    is AiOutcome.Failure -> AnalysisUiState.Error(outcome.error.toMessageRes())
+                }
+            } catch (t: Throwable) {
+                android.util.Log.e(TAG, "本週分析失敗", t)
+                _analysisState.value = AnalysisUiState.Error(R.string.ai_error_network)
             }
         }
     }
@@ -66,9 +71,15 @@ class AiViewModel @Inject constructor(
         if (_analysisState.value is AnalysisUiState.Loading) return
         _analysisState.value = AnalysisUiState.Loading
         viewModelScope.launch {
-            _analysisState.value = when (val outcome = aiRepository.askQuestion(question.trim())) {
-                is AiOutcome.Success -> AnalysisUiState.Success(outcome.analysis)
-                is AiOutcome.Failure -> AnalysisUiState.Error(outcome.error.toMessageRes())
+            try {
+                _analysisState.value =
+                    when (val outcome = aiRepository.askQuestion(question.trim())) {
+                        is AiOutcome.Success -> AnalysisUiState.Success(outcome.analysis)
+                        is AiOutcome.Failure -> AnalysisUiState.Error(outcome.error.toMessageRes())
+                    }
+            } catch (t: Throwable) {
+                android.util.Log.e(TAG, "自由提問失敗", t)
+                _analysisState.value = AnalysisUiState.Error(R.string.ai_error_network)
             }
         }
     }
@@ -95,5 +106,9 @@ class AiViewModel @Inject constructor(
         AiError.QuotaExceeded -> R.string.ai_error_quota
         is AiError.Http -> R.string.ai_error_http
         AiError.Parse -> R.string.ai_error_parse
+    }
+
+    private companion object {
+        private const val TAG = "AiVM"
     }
 }

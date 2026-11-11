@@ -18,6 +18,11 @@
 
 ## Session 紀錄
 
+- **Session 10（快速記帳閃退修復＋全專案自檢）**：
+  - **閃退排查**：總覽 FAB → 記帳頁的呼叫鏈逐層靜態檢查（導覽 route、Hilt 注入、ViewModel 屬性初始化順序、字串資源、組合語法）皆正常；編譯與 DI 由 CI 保證。判斷風險點：記帳 ViewModel 這次新注入 AiRepository，會在開啟記帳頁時首次建立整個 AI 服務鏈（Retrofit／加密設定檔），為實機上新觸發的執行路徑。
+  - **修復措施（三層防護）**：(1) AddTransactionViewModel 改用 dagger.Lazy 延後建立 AI 服務，開啟記帳頁不再觸發 AI 服務鏈初始化；(2) 所有 AI ViewModel（AddTransaction/FeatureAi/AiChat/Ai）的每個 AI 呼叫包 try-catch＋Log.e，任何失敗只顯示錯誤 UI，絕不往上拋成閃退；(3) proguard-rules.pro 補上 AI 網路介面 keep 規則與註解屬性保留（避免 release 混淆後閃退）。
+  - **全專案自檢結論**：五分頁與附屬頁 route 皆存在於導覽圖；記帳頁新增／編輯兩模式共用同一 Sheet（editingId 參數）；統計頁等上一輪檔案無殘留不完整程式碼（括號平衡＋CI 編譯通過）；AI 未設定時 callRaw 直接回 NotConfigured 錯誤，各入口顯示「前往設定」引導而非例外；字串資源由編譯驗證齊全；lintDebug 加入 CI 管線（Error 等級會擋建置）。
+  - **下一 session 起點**：若使用者提供 logcat，以日誌為準再修正；實機驗收清單＝五分頁可進入、快速記帳可開啟並儲存、編輯同一筆成功。
 - **Session 9（Bug 修復＋AI 全面整合，已完成）**：不屬於原 11 階段，為使用者追加需求。
   - **Bug 修復**：(1) 記一筆（AddTransactionSheet）內容改為可捲動（verticalScroll），數字鍵盤欄寬以 weight 自適應，任何螢幕高度都完整顯示 0、小數點、刪除鍵，無 RenderFlex overflow；(2) 頂部新增返回鍵，有未儲存輸入時跳出「放棄這筆記錄？」確認對話框；鍵盤列下方新增一致的「完成 ✓」送出鍵（支出／收入／轉帳三個分頁相同）；驗證失敗改以 Snackbar 提示；儲存成功顯示 Toast 並關閉。
   - **AI 全面整合**（沿用既有 AiRepository 服務層，設定頁仍為唯一設定入口）：四個主分頁（總覽／明細／統計／帳戶）各有浮動 AI 按鈕開啟全域 AI 助手對話面板（AiAssistantSheet，附精簡去敏感化財務 context）；總覽「本週 AI 洞察」；明細自然語言 AI 篩選＋批次分析；統計「AI 分析本期」；帳戶「AI 解讀帳戶」；記一筆備註欄 AI 按鈕（自動分類／智慧標籤／備註潤飾）。所有 AI 呼叫有 loading＋可取消、友善錯誤訊息＋「前往設定」按鈕、一律繁體中文回覆。

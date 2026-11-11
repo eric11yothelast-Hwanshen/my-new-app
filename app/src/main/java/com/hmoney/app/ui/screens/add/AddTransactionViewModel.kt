@@ -38,7 +38,7 @@ import javax.inject.Inject
 @HiltViewModel
 class AddTransactionViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
-    private val aiRepository: AiRepository,
+    private val aiRepository: dagger.Lazy<AiRepository>,
     accountRepository: AccountRepository,
     categoryRepository: CategoryRepository,
 ) : ViewModel() {
@@ -249,19 +249,35 @@ class AddTransactionViewModel @Inject constructor(
         }
         if (aiState.value is AiState.Loading) return
         aiState.value = AiState.Loading
+        val repository = try {
+            aiRepository.get()
+        } catch (t: Throwable) {
+            android.util.Log.e(TAG, "AI 服務初始化失敗", t)
+            aiState.value = AiState.Error(AiError.Network)
+            return
+        }
         val categories = uiState.value.categories
         aiJob = viewModelScope.launch {
-            aiRepository.suggestForNote(note, categories.map { it.name })
-                .onSuccess { suggestion -> applySuggestion(suggestion, note) }
-                .onFailure { e ->
-                    aiState.value = AiState.Error(
-                        (e as? AiCallException)?.error ?: AiError.Parse,
-                    )
-                }
+            try {
+                repository.suggestForNote(note, categories.map { it.name })
+                    .onSuccess { suggestion -> applySuggestion(repository, suggestion, note) }
+                    .onFailure { e ->
+                        aiState.value = AiState.Error(
+                            (e as? AiCallException)?.error ?: AiError.Parse,
+                        )
+                    }
+            } catch (t: Throwable) {
+                android.util.Log.e(TAG, "AI 建議失敗", t)
+                aiState.value = AiState.Error(AiError.Network)
+            }
         }
     }
 
-    private suspend fun applySuggestion(suggestion: AiSuggestion, originalNote: String) {
+    private suspend fun applySuggestion(
+        repository: AiRepository,
+        suggestion: AiSuggestion,
+        originalNote: String,
+    ) {
         suggestion.categoryName?.let { name ->
             uiState.value.categories.firstOrNull { it.name == name }?.let { matched ->
                 form.update { it.copy(categoryId = matched.id) }
@@ -270,11 +286,19 @@ class AddTransactionViewModel @Inject constructor(
         if (suggestion.tags.isNotEmpty()) {
             form.update { it.copy(tagsText = suggestion.tags.take(3).joinToString(",")) }
         }
-        when (val polished = aiRepository.polishNote(originalNote)) {
-            is AiTextResult.Success ->
-                form.update { it.copy(note = polished.text.ifBlank { originalNote }) }
-            is AiTextResult.Failure -> Unit
+        try {
+            when (val polished = repository.polishNote(originalNote)) {
+                is AiTextResult.Success ->
+                    form.update { it.copy(note = polished.text.ifBlank { originalNote }) }
+                is AiTextResult.Failure -> Unit
+            }
+        } catch (t: Throwable) {
+            android.util.Log.e(TAG, "備註潤飾失敗", t)
         }
         aiState.value = AiState.Done
+    }
+
+    private companion object {
+        private const val TAG = "AddTransactionVM"
     }
 }

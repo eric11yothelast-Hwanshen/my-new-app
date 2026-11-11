@@ -53,9 +53,14 @@ class FeatureAiViewModel @Inject constructor(
         if (_uiState.value is UiState.Loading) return
         _uiState.value = UiState.Loading
         job = viewModelScope.launch {
-            _uiState.value = when (val result = aiRepository.analyzeData(title, data)) {
-                is AiTextResult.Success -> UiState.TextResult(result.text)
-                is AiTextResult.Failure -> UiState.Error(result.error)
+            try {
+                _uiState.value = when (val result = aiRepository.analyzeData(title, data)) {
+                    is AiTextResult.Success -> UiState.TextResult(result.text)
+                    is AiTextResult.Failure -> UiState.Error(result.error)
+                }
+            } catch (t: Throwable) {
+                android.util.Log.e(TAG, "AI 數據解讀失敗", t)
+                _uiState.value = UiState.Error(AiError.Network)
             }
         }
     }
@@ -65,9 +70,14 @@ class FeatureAiViewModel @Inject constructor(
         if (_uiState.value is UiState.Loading) return
         _uiState.value = UiState.Loading
         job = viewModelScope.launch {
-            _uiState.value = when (val outcome = aiRepository.analyzeWeek()) {
-                is AiOutcome.Success -> UiState.Insight(outcome.analysis)
-                is AiOutcome.Failure -> UiState.Error(outcome.error)
+            try {
+                _uiState.value = when (val outcome = aiRepository.analyzeWeek()) {
+                    is AiOutcome.Success -> UiState.Insight(outcome.analysis)
+                    is AiOutcome.Failure -> UiState.Error(outcome.error)
+                }
+            } catch (t: Throwable) {
+                android.util.Log.e(TAG, "本週洞察失敗", t)
+                _uiState.value = UiState.Error(AiError.Network)
             }
         }
     }
@@ -81,13 +91,22 @@ class FeatureAiViewModel @Inject constructor(
         if (query.isBlank() || _uiState.value is UiState.Loading) return
         _uiState.value = UiState.Loading
         job = viewModelScope.launch {
-            aiRepository.interpretFilter(query.trim(), categoryNames, accountNames)
-                .onSuccess { _uiState.value = UiState.Filter(it) }
-                .onFailure { e ->
-                    _uiState.value = UiState.Error(
-                        (e as? AiCallException)?.error ?: AiError.Parse,
-                    )
-                }
+            try {
+                aiRepository.interpretFilter(query.trim(), categoryNames, accountNames)
+                    .onSuccess { _uiState.value = UiState.Filter(it) }
+                    .onFailure { e ->
+                        _uiState.value = UiState.Error(
+                            (e as? AiCallException)?.error ?: AiError.Parse,
+                        )
+                    }
+            } catch (t: Throwable) {
+                android.util.Log.e(TAG, "AI 篩選失敗", t)
+                _uiState.value = UiState.Error(AiError.Network)
+            }
         }
+    }
+
+    private companion object {
+        private const val TAG = "FeatureAiVM"
     }
 }
