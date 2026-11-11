@@ -145,8 +145,9 @@ class AiRepositoryImpl @Inject constructor(
     ): Result<AiFilterSuggestion> {
         val result = callRaw(
             systemPrompt = "你是記帳搜尋助手。把使用者的自然語言描述轉成篩選條件 JSON，" +
-                "以繁體中文值回傳：{"category": 分類名稱或 null, "account": 帳戶名稱或 null, "" +
-                "keyword": 關鍵字或 null, "startDate": \"yyyy-MM-dd\"或 null, "endDate": \"yyyy-MM-dd\"或 null}。" +
+                "以繁體中文值回傳：{\"category\": \"分類名稱\", \"account\": \"帳戶名稱\", " +
+                "\"keyword\": \"關鍵字\", \"startDate\": \"yyyy-MM-dd\", \"endDate\": \"yyyy-MM-dd\"}，" +
+                "無法判斷的欄位填 null。" +
                 "分類只能從：${categoryNames.joinToString(",")}；帳戶只能從：${accountNames.joinToString(",")}。" +
                 "今天日期是 ${LocalDate.now()}。只回傳 JSON。",
             userPrompt = "描述：$query",
@@ -162,10 +163,15 @@ class AiRepositoryImpl @Inject constructor(
                 val parsed = JSONObject(jsonText)
                 val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd")
                 fun optDate(key: String): Long? = runCatching {
-                    parsed.optString(key).takeIf { it.isNotBlank() }
-                        ?.let { LocalDate.parse(it, formatter) }
-                        ?.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() }
-                    .getOrNull()
+                    val text = parsed.optString(key)
+                    if (text.isBlank() || text == "null") {
+                        null
+                    } else {
+                        LocalDate.parse(text, formatter)
+                            .atStartOfDay(ZoneId.systemDefault())
+                            .toInstant().toEpochMilli()
+                    }
+                }.getOrNull()
                 AiFilterSuggestion(
                     categoryName = parsed.optString("category").takeIf {
                         it.isNotBlank() && it != "null"
