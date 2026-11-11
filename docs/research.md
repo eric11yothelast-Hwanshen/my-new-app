@@ -28,7 +28,8 @@
 | Retrofit | **3.0.0**（Session 6 起採用） | github.com/square/retrofit |
 | OkHttp | **5.1.0**（BOM） | square/okhttp releases |
 | Haze（玻璃態） | **2.1.0**（Glass 效果自 2.1 起穩定） | chrisbanes.me/posts/haze-2.1.0 |
-| compileSdk / targetSdk | **36**（Android 16） | Google Play 政策（見第二節） |
+| compileSdk | **37**（2026 最新 AndroidX 稳定版要求 compileSdk 37） |
+| targetSdk | **36**（Android 16） | Google Play 政策（見第二節） |
 | minSdk | **26**（依規格） | 規格書 |
 
 ### 重要工具鏈注意事項（AGP 9 遷移）
@@ -41,7 +42,7 @@
 ## 二、targetSdk 規範（2026）
 
 - Google Play 自 **2026-08-31** 起要求新 App 與更新必須 target **Android 16（API 36）** 以上（Wear/Auto 等另有規定）。
-- 本專案固定 `compileSdk = 36`、`targetSdk = 36`，符合現行規範。
+- 本專案固定 `compileSdk = 37`（最新 AndroidX 穩定版要求）、`targetSdk = 36`，符合現行規範。
 - API 36 起不可退出 edge-to-edge（`windowOptOutEdgeToEdgeEnforcement` 已停用）——UI 實作必須直接以 edge-to-edge 為前提設計。
 
 ## 三、UI 設計趨勢（2026）
