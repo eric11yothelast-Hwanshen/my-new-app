@@ -14,7 +14,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.InsertChart
+import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
@@ -162,7 +162,7 @@ fun StatsScreen(
                 )
                 if (state.categorySlices.isEmpty()) {
                     EmptyState(
-                        icon = Icons.AutoMirrored.Outlined.InsertChart,
+                        icon = Icons.Outlined.PieChart,
                         messageRes = R.string.stats_empty,
                     )
                 } else {
