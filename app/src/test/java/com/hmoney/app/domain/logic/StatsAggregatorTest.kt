@@ -52,8 +52,8 @@ class StatsAggregatorTest {
         assertEquals(5000_00L, result.totalIncomeCents)
         assertEquals(2, result.categorySlices.size)
         // 餐飲占 75%、交通占 25%
-        assertEquals(0.75f, result.categorySlices.first { it.category.id == 1 }.ratio, 0.001f)
-        assertEquals(0.25f, result.categorySlices.first { it.category.id == 2 }.ratio, 0.001f)
+        assertEquals(0.75f, result.categorySlices.first { it.category.id == 1L }.ratio, 0.001f)
+        assertEquals(0.25f, result.categorySlices.first { it.category.id == 2L }.ratio, 0.001f)
     }
 
     @Test
