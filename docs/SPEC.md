@@ -177,6 +177,7 @@ App 圖示：製作 adaptive icon（前景＋背景 vector drawable），以「�
 10. README 含下載與設定教學
 11. Secrets 或 .private/ 中存在可用的 release 簽章金鑰（並已註明公開倉庫前需輪替金鑰）
 12. 本 session 指定階段已在 docs/PROGRESS.md 勾選更新
+13. 無捲動容器巢狀：任何 LazyColumn／LazyVerticalGrid／verticalScroll 不得位於另一個無限高度約束的垂直捲動容器內（此類錯誤編譯與 lint 皆測不到，實機第一次測量即閃退）
 
 ## 十一、執行順序
 

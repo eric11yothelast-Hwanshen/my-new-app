@@ -19,6 +19,15 @@
 
 ## Session 紀錄
 
+- **Session 11（實機閃退修復：捲動容器巢狀）**：以使用者提供的實機 logcat 為準的根因修復（`IllegalStateException: Vertically scrollable component was measured with an infinity maximum height constraints`），對應 SPEC 3.1 快速記帳，不更動其他功能範圍。
+  - **根因**：Session 9 為修數字鍵盤截斷，把 AddTransactionSheet 的內容改為 `verticalScroll`；但分類區仍是 `LazyVerticalGrid`（縱向捲動元件），在無限高度約束的父層內第一次測量即拋例外，開啟「快速記帳」頁直接閃退。此問題編譯與 lint 皆測不到。
+  - **修復（單一捲動結構，二擇一方案中的前者）**：外層 Column 不捲動；中段 `Column(weight(1f)) + verticalScroll` 放分類、日期、備註等可捲動內容；數字鍵盤與「完成 ✓」鈕固定底部，不隨內容捲動，任何螢幕高度都完整顯示鍵盤（0、小數點、刪除鍵）。分類格由 `LazyVerticalGrid` 改為純 Column／Row 的固定 4 欄 `CategoryGrid`（分類數量有限，不影響效能），全 Sheet 不再有任何巢狀捲動。
+  - **全域排查**：統計、明細、帳戶、AI（AiScreen／AiAssistantSheet）、設定、精靈頁與 AiResultDialog 逐一檢查，皆為單一捲動結構（LazyColumn 或 verticalScroll 僅出現一層；各 weight 均在 Row 內），無同類問題，未更動。
+  - **自檢清單**：SPEC 第十節新增第 13 項「捲動容器巢狀」檢查，之後每個 session 交付前檢查。
+  - **建置結果**：沙箱無 JDK/Android SDK，驗證由 GitHub Actions 執行（testDebugUnitTest＋lintDebug＋雙 APK 簽署＋Release）。
+  - **重要決策（請勿誤改）**：AddTransactionSheet 必須維持「外層不捲動＋中段 weight(1f) 捲動＋鍵盤固定底部」的單一捲動結構，分類區必須使用非 Lazy 的 CategoryGrid——原因：在可捲動父層內放任何縱向 Lazy 元件都會以無限高度測量而閃退，此類錯誤編譯與 lint 測不到，只有實機會爆。
+  - **待實機驗證**：快速記帳可開啟並儲存、鍵盤完整顯示、內容多時可捲動、編輯同一筆成功。
+
 - **Session 10（快速記帳閃退修復＋全專案自檢）**：對應 SPEC 3.1（核心記帳）與 3.5（AI 分析）的實機穩定性強化，為使用者回報閃退後的追加修復，不更動既有功能範圍。
   - **閃退排查**：總覽 FAB → 記帳頁的呼叫鏈逐層靜態檢查（導覽 route、Hilt 注入、ViewModel 屬性初始化順序、字串資源、組合語法）皆正常；編譯與 DI 由 CI 保證。判斷風險點：記帳 ViewModel 這次新注入 AiRepository，會在開啟記帳頁時首次建立整個 AI 服務鏈（Retrofit／加密設定檔），為實機上新觸發的執行路徑。
   - **修復措施（三層防護）**：(1) AddTransactionViewModel 改用 dagger.Lazy 延後建立 AI 服務，開啟記帳頁不再觸發 AI 服務鏈初始化；(2) 所有 AI ViewModel（AddTransaction/FeatureAi/AiChat/Ai）的每個 AI 呼叫包 try-catch＋Log.e，任何失敗只顯示錯誤 UI，絕不往上拋成閃退；(3) proguard-rules.pro 補上 AI 網路介面 keep 規則與註解屬性保留（避免 release 混淆後閃退）。
