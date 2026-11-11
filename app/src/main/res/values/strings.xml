@@ -13,21 +13,101 @@
     <!-- 總覽頁 -->
     <string name="overview_title">總覽</string>
     <string name="overview_month_summary">本月收支</string>
-    <string name="overview_description">這裡會顯示本月收支玻璃卡、各帳戶餘額與近期明細，並提供快速記帳按鈕。</string>
+    <string name="overview_month_expense">本月支出</string>
+    <string name="overview_month_income">本月收入</string>
+    <string name="overview_total_balance">總餘額</string>
+    <string name="overview_accounts_section">帳戶餘額</string>
+    <string name="overview_recent_section">近期明細</string>
+    <string name="overview_see_all">查看全部</string>
+    <string name="overview_empty">還沒有任何記錄，點右下角按鈕記下第一筆吧！</string>
+    <string name="overview_add">快速記帳</string>
 
     <!-- 明細頁 -->
     <string name="transactions_title">明細</string>
-    <string name="transactions_description">這裡會顯示完整交易列表，支援關鍵字搜尋與期間、帳戶、分類、類型篩選。</string>
+    <string name="transactions_search_hint">搜尋備註或標籤</string>
+    <string name="transactions_filter_type">類型</string>
+    <string name="transactions_filter_account">帳戶</string>
+    <string name="transactions_filter_category">分類</string>
+    <string name="transactions_filter_date">期間</string>
+    <string name="transactions_filter_all">全部</string>
+    <string name="transactions_day_total">小計</string>
+    <string name="transactions_empty">找不到符合的交易，換個條件試試看</string>
+    <string name="transactions_delete_confirm">確定要刪除這筆交易嗎？刪除後無法復原。</string>
+    <string name="transactions_delete_title">刪除交易</string>
+    <string name="transactions_transfer_to">轉入 %1$s</string>
+    <string name="transactions_transfer_from">轉出至 %1$s</string>
+    <string name="transactions_fee_note">手續費 %1$s</string>
 
     <!-- 統計頁 -->
     <string name="stats_title">統計</string>
     <string name="stats_description">這裡會顯示支出分類占比、收支趨勢與分類排行榜，可依日／週／月／年切換。</string>
+    <string name="stats_empty">這個區間還沒有資料</string>
 
     <!-- 帳戶頁 -->
     <string name="accounts_title">帳戶</string>
-    <string name="accounts_description">這裡會顯示各帳戶卡片與即時餘額，可新增帳戶、帳戶間轉帳與管理帳戶。</string>
+    <string name="accounts_empty">還沒有帳戶，先新增一個吧</string>
+    <string name="accounts_add">新增帳戶</string>
+    <string name="accounts_edit">編輯帳戶</string>
+    <string name="accounts_name">帳戶名稱</string>
+    <string name="accounts_name_required">請輸入帳戶名稱</string>
+    <string name="accounts_icon">圖示</string>
+    <string name="accounts_color">顏色</string>
+    <string name="accounts_initial_balance">期初餘額</string>
+    <string name="accounts_initial_balance_hint">0.00</string>
+    <string name="accounts_hide">隱藏帳戶</string>
+    <string name="accounts_hide_confirm">隱藏後將不再顯示於列表，但歷史資料會保留。確定要隱藏「%1$s」嗎？</string>
+    <string name="accounts_delete_fail">此帳戶有交易記錄，僅能隱藏不能刪除</string>
+    <string name="accounts_hidden_tag">已隱藏</string>
+    <string name="accounts_show_hidden">顯示已隱藏帳戶</string>
+    <string name="accounts_currency_tag">%1$s</string>
 
     <!-- 設定頁 -->
     <string name="settings_title">設定</string>
-    <string name="settings_description">這裡會提供預算、AI 連線、通知、備份與外觀等設定項目。</string>
+    <string name="settings_appearance">外觀</string>
+    <string name="settings_dark_mode">深色模式</string>
+    <string name="settings_dark_mode_system">跟隨系統</string>
+    <string name="settings_dark_mode_light">淺色</string>
+    <string name="settings_dark_mode_dark">深色</string>
+    <string name="settings_dynamic_color">動態色彩（Material You）</string>
+    <string name="settings_dynamic_color_desc">使用系統桌布取色（Android 12 以上）</string>
+
+    <!-- 新增／編輯交易 -->
+    <string name="add_title">記一筆</string>
+    <string name="add_edit_title">編輯交易</string>
+    <string name="add_type_expense">支出</string>
+    <string name="add_type_income">收入</string>
+    <string name="add_type_transfer">轉帳</string>
+    <string name="add_amount_hint">0.00</string>
+    <string name="add_account">帳戶</string>
+    <string name="add_to_account">轉入帳戶</string>
+    <string name="add_category">分類</string>
+    <string name="add_fee">手續費</string>
+    <string name="add_fee_hint">0.00</string>
+    <string name="add_date">日期</string>
+    <string name="add_time">時間</string>
+    <string name="add_note">備註</string>
+    <string name="add_note_hint">選填</string>
+    <string name="add_tags">標籤</string>
+    <string name="add_tags_hint">多個標籤以逗號分隔</string>
+    <string name="add_save">儲存</string>
+    <string name="add_cancel">取消</string>
+    <string name="add_delete">刪除</string>
+    <string name="add_confirm">確定</string>
+    <string name="add_dismiss">取消</string>
+    <string name="add_error_amount">請輸入有效金額（不可為負，最多兩位小數）</string>
+    <string name="add_error_category">請選擇分類</string>
+    <string name="add_error_account">請選擇帳戶</string>
+    <string name="add_error_same_account">轉出與轉入帳戶不可相同</string>
+    <string name="add_error_generic">儲存失敗，請再試一次</string>
+    <string name="add_saved">已儲存</string>
+    <string name="add_deleted">已刪除</string>
+    <string name="add_date_picker">選擇日期</string>
+    <string name="add_time_picker">選擇時間</string>
+    <string name="add_ok">確定</string>
+
+    <!-- 通用 -->
+    <string name="common_delete">刪除</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_confirm">確定</string>
+    <string name="common_save">儲存</string>
 </resources>

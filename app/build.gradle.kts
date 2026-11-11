@@ -74,6 +74,14 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
+    // DataStore（外觀等設定）
+    implementation(libs.androidx.datastore.preferences)
+
+    // Haze 玻璃態視觉（API 33+ 完整效果，低版本自動降級）
+    implementation(libs.haze.core)
+    implementation(libs.haze.blur)
+    implementation(libs.haze.blur.materials)
+
     // 開發期工具
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
