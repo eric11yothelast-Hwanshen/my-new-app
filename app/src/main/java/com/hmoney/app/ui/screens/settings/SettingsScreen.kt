@@ -53,6 +53,7 @@ import dev.chrisbanes.haze.rememberHazeState
  */
 @Composable
 fun SettingsScreen(
+    onOpenWizard: () -> Unit,
     modifier: Modifier = Modifier,
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     budgetViewModel: BudgetViewModel = hiltViewModel(),
@@ -131,6 +132,9 @@ fun SettingsScreen(
                 onCheckedChange = settingsViewModel::setDynamicColor,
             )
         }
+
+        // ===== 通知 =====
+        NotificationSection(onOpenWizard = onOpenWizard)
 
         // ===== 預算 =====
         BudgetSection(budgetViewModel)

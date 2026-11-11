@@ -18,8 +18,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -34,10 +34,14 @@ import com.hmoney.app.ui.screens.accounts.AccountsScreen
 import com.hmoney.app.ui.screens.overview.OverviewScreen
 import com.hmoney.app.ui.screens.settings.SettingsScreen
 import com.hmoney.app.ui.screens.transactions.TransactionsScreen
+import com.hmoney.app.ui.screens.wizard.BatteryWizardScreen
 import dev.chrisbanes.haze.rememberHazeState
+
+private const val WIZARD_ROUTE = "battery_wizard"
 
 /**
  * App 主框架：玻璃態底部導覽列（5 頁）＋ Navigation Compose spring 轉場動畫。
+ * 附屬頁面（如續航設定精靈）不顯示底部導覽列。
  */
 @Composable
 fun HmoneyAppRoot(modifier: Modifier = Modifier) {
@@ -46,43 +50,47 @@ fun HmoneyAppRoot(modifier: Modifier = Modifier) {
     val currentDestination = backStackEntry?.destination
     val glassState = rememberHazeState()
 
+    val isTopLevel = TopLevelDestination.entries.any { it.route == currentDestination?.route }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            // 玻璃態底部導覽列：API 33+ 背景模糊，低版本半透明壓色
-            NavigationBar(
-                containerColor = Color.Transparent,
-                modifier = Modifier.glassSurface(
-                    state = glassState,
-                    fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-                    outlineColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                    cornerRadius = 0.dp,
-                ),
-            ) {
-                TopLevelDestination.entries.forEach { destination ->
-                    val selected = currentDestination?.hierarchy?.any {
-                        it.route == destination.route
-                    } == true
-                    NavigationBarItem(
-                        selected = selected,
-                        onClick = {
-                            navController.navigate(destination.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+            if (isTopLevel) {
+                // 玻璃態底部導覽列：API 33+ 背景模糊，低版本半透明壓色
+                NavigationBar(
+                    containerColor = Color.Transparent,
+                    modifier = Modifier.glassSurface(
+                        state = glassState,
+                        fallbackColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                        outlineColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
+                        cornerRadius = 0.dp,
+                    ),
+                ) {
+                    TopLevelDestination.entries.forEach { destination ->
+                        val selected = currentDestination?.hierarchy?.any {
+                            it.route == destination.route
+                        } == true
+                        NavigationBarItem(
+                            selected = selected,
+                            onClick = {
+                                navController.navigate(destination.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
                                 }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
-                        icon = {
-                            Icon(
-                                imageVector = destination.icon,
-                                contentDescription = stringResource(destination.labelRes),
-                            )
-                        },
-                        label = { Text(stringResource(destination.labelRes)) },
-                    )
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = destination.icon,
+                                    contentDescription = stringResource(destination.labelRes),
+                                )
+                            },
+                            label = { Text(stringResource(destination.labelRes)) },
+                        )
+                    }
                 }
             }
         },
@@ -120,7 +128,14 @@ fun HmoneyAppRoot(modifier: Modifier = Modifier) {
             composable(TopLevelDestination.TRANSACTIONS.route) { TransactionsScreen() }
             composable(TopLevelDestination.STATS.route) { StatsScreen() }
             composable(TopLevelDestination.ACCOUNTS.route) { AccountsScreen() }
-            composable(TopLevelDestination.SETTINGS.route) { SettingsScreen() }
+            composable(TopLevelDestination.SETTINGS.route) {
+                SettingsScreen(
+                    onOpenWizard = { navController.navigate(WIZARD_ROUTE) },
+                )
+            }
+            composable(WIZARD_ROUTE) {
+                BatteryWizardScreen(onBack = { navController.popBackStack() })
+            }
         }
     }
 }

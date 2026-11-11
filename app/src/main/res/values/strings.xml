@@ -149,6 +149,49 @@
     <string name="add_time_picker">選擇時間</string>
     <string name="add_ok">確定</string>
 
+    <!-- 通知 -->
+    <string name="notification_title">通知</string>
+    <string name="notification_daily_reminder">每日記帳提醒</string>
+    <string name="notification_daily_reminder_desc">每天固定時間提醒你記帳</string>
+    <string name="notification_daily_reminder_content">別忘了把今天的花費記下來！</string>
+    <string name="notification_daily_reminder_time">提醒時間</string>
+    <string name="notification_permission_title">通知權限</string>
+    <string name="notification_permission_request">請求通知權限</string>
+    <string name="notification_permission_denied">通知權限已被拒絕，請到系統設定開啟，否則收不到提醒</string>
+    <string name="notification_permission_open_settings">前往系統設定</string>
+    <string name="notification_permission_granted">已授權</string>
+    <string name="notification_budget_warning_title">預算警示</string>
+    <string name="notification_budget_warning_80">本月支出已達預算的 80%%</string>
+    <string name="notification_budget_warning_100">本月支出已超過預算！</string>
+    <string name="notification_budget_category_80">「%1$s」已達分類預算的 80%%</string>
+    <string name="notification_budget_category_100">「%1$s」已超過分類預算！</string>
+    <string name="notification_weekly_title">本週摘要</string>
+    <string name="notification_weekly_content">本週支出 %1$s，最大分類：%2$s</string>
+    <string name="notification_recurring_title">週期交易入帳</string>
+    <string name="notification_recurring_content">已自動入帳 %1$d 筆週期交易</string>
+    <string name="notification_exact_alarm_title">精確鬧鐘</string>
+    <string name="notification_exact_alarm_desc">未授予精確鬧鐘權限時，提醒改以彈性排程送達（時間可能略有誤差）</string>
+
+    <!-- 防後台終止精靈 -->
+    <string name="wizard_title">通知與續航設定精靈</string>
+    <string name="wizard_desc">各手機廠牌為了省電，常在背景終止 App，導致提醒與自動記帳失效。請依你的手機廠牌完成以下設定。</string>
+    <string name="wizard_battery_optimization">忽略電池最佳化</string>
+    <string name="wizard_battery_optimization_desc">讓系統不要為了省電而終止幻帳（僅此一次請求）</string>
+    <string name="wizard_battery_request">申請忽略電池最佳化</string>
+    <string name="wizard_battery_done">已完成</string>
+    <string name="wizard_vendor_settings">開啟 %1$s 的背景設定頁</string>
+    <string name="wizard_vendor_guide_title">%1$s 建議步驟</string>
+    <string name="wizard_vendor_more">查看 dontkillmyapp 完整教學</string>
+    <string name="wizard_unknown_vendor">偵測不到支援的廠牌，請改用「忽略電池最佳化」與 dontkillmyapp 教學</string>
+    <string name="wizard_steps_samsung">1. 開啟「設定 → 電池與裝置維護（電池）」\n2. 關閉「將未使用的 App 進入睡眠」與「深度睡眠」\n3. 在背景使用限制中，將幻帳設為「不受限制」</string>
+    <string name="wizard_steps_xiaomi">1. 開啟「設定 → 應用程式 → 幻帳 → 省電策略」，選「無限制」\n2. 在安全性 App 中允許「自動啟動」\n3. 開啟通知權限</string>
+    <string name="wizard_steps_oppo">1. 開啟「設定 → 電池」，將幻帳設為允許背景執行\n2. 在「應用程式管理」允許自啟動\n3. 於最近任務中將幻帳上鎖</string>
+    <string name="wizard_steps_vivo">1. 開啟「設定 → 電池 → 背景高耗電」，允許幻帳\n2. 在 i 管家允許「自啟動」與「關聯啟動」\n3. 於最近任務中將幻帳上鎖</string>
+    <string name="wizard_steps_huawei">1. 開啟「設定 → 電池 → 啟動管理」，將幻帳改為「手動管理」並允許自啟動、關聯啟動、背景活動\n2. 在「受保護的應用」中開啟幻帳</string>
+    <string name="wizard_steps_honor">1. 開啟「設定 → 電池 → 啟動管理」，將幻帳改為手動管理並允許背景活動\n2. 於最近任務中將幻帳上鎖</string>
+    <string name="wizard_steps_google">Pixel／原生 Android 只需完成「忽略電池最佳化」即可，不建議任何額外設定。</string>
+    <string name="wizard_back">返回設定</string>
+
     <!-- 通用 -->
     <string name="common_delete">刪除</string>
     <string name="common_cancel">取消</string>

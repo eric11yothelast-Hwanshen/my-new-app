@@ -77,6 +77,11 @@ dependencies {
     // DataStore（外觀等設定）
     implementation(libs.androidx.datastore.preferences)
 
+    // WorkManager 週期排程（備份、預算、週報、週期交易）
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
+
     // Haze 玻璃態視觉（API 33+ 完整效果，低版本自動降級）
     implementation(libs.haze.core)
     implementation(libs.haze.blur)
