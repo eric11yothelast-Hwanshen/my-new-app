@@ -137,10 +137,26 @@ fun HmoneyAppRoot(
                 ) + fadeOut()
             },
         ) {
-            composable(TopLevelDestination.OVERVIEW.route) { OverviewScreen() }
-            composable(TopLevelDestination.TRANSACTIONS.route) { TransactionsScreen() }
-            composable(TopLevelDestination.STATS.route) { StatsScreen() }
-            composable(TopLevelDestination.ACCOUNTS.route) { AccountsScreen() }
+            // AI 錯誤回饋的「前往設定」：切換到設定分頁（AI 連線設定的唯一入口）
+            val goSettings = {
+                navController.navigate(TopLevelDestination.SETTINGS.route) {
+                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+            composable(TopLevelDestination.OVERVIEW.route) {
+                OverviewScreen(onGoSettings = goSettings)
+            }
+            composable(TopLevelDestination.TRANSACTIONS.route) {
+                TransactionsScreen(onGoSettings = goSettings)
+            }
+            composable(TopLevelDestination.STATS.route) {
+                StatsScreen(onGoSettings = goSettings)
+            }
+            composable(TopLevelDestination.ACCOUNTS.route) {
+                AccountsScreen(onGoSettings = goSettings)
+            }
             composable(TopLevelDestination.SETTINGS.route) {
                 SettingsScreen(
                     onOpenWizard = { navController.navigate(WIZARD_ROUTE) },

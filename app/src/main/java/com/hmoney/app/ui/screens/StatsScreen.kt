@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,8 +15,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.PieChart
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -24,6 +28,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.hmoney.app.R
 import com.hmoney.app.ui.common.Formats
+import com.hmoney.app.ui.components.AiFloatingButton
+import com.hmoney.app.ui.components.AiResultDialog
 import com.hmoney.app.ui.components.DonutChart
 import com.hmoney.app.ui.components.EmptyState
 import com.hmoney.app.ui.components.GlassCard
@@ -39,6 +48,8 @@ import com.hmoney.app.ui.components.RankRow
 import com.hmoney.app.ui.components.TrendBarChart
 import com.hmoney.app.ui.components.glassSource
 import com.hmoney.app.domain.logic.StatsAggregator
+import com.hmoney.app.ui.screens.ai.AiAssistantSheet
+import com.hmoney.app.ui.screens.ai.FeatureAiViewModel
 import com.hmoney.app.ui.screens.stats.StatsViewModel
 import dev.chrisbanes.haze.rememberHazeState
 
@@ -49,17 +60,22 @@ import dev.chrisbanes.haze.rememberHazeState
 @Composable
 fun StatsScreen(
     modifier: Modifier = Modifier,
+    onGoSettings: () -> Unit = {},
     viewModel: StatsViewModel = hiltViewModel(),
+    aiViewModel: FeatureAiViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val aiState by aiViewModel.uiState.collectAsState()
     val glassState = rememberHazeState()
+    var showAiSheet by remember { mutableStateOf(false) }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .glassSource(glassState),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .glassSource(glassState),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
         item {
             Column(
                 modifier = Modifier.padding(horizontal = 20.dp),
@@ -146,6 +162,44 @@ fun StatsScreen(
                         )
                     }
                 }
+
+                // AI 分析本期：將該期間的分類統計送給 AI 解讀
+                AssistChip(
+                    onClick = {
+                        val periodLabel = stringResource(
+                            when (state.period) {
+                                StatsAggregator.Period.DAY -> R.string.stats_period_day
+                                StatsAggregator.Period.WEEK -> R.string.stats_period_week
+                                StatsAggregator.Period.MONTH -> R.string.stats_period_month
+                                StatsAggregator.Period.YEAR -> R.string.stats_period_year
+                            },
+                        )
+                        val slices = state.categorySlices.joinToString("\n") { slice ->
+                            "- ${slice.category.name}：${Formats.money(slice.cents)}" +
+                                "（占 ${(slice.ratio * 100).toInt()}%）"
+                        }
+                        val ranking = state.ranking.joinToString("\n") { entry ->
+                            "- ${entry.category.name}：${Formats.money(entry.cents)}" +
+                                "（前期 ${Formats.money(entry.previousCents)}）"
+                        }
+                        val data = "期間：$periodLabel\n" +
+                            "總支出：${Formats.money(state.totalExpenseCents)}\n" +
+                            "總收入：${Formats.money(state.totalIncomeCents)}\n" +
+                            "支出分類占比：\n$slices\n分類排行（含前期比較）：\n$ranking"
+                        aiViewModel.runText(
+                            title = stringResource(R.string.ai_analyze_period),
+                            data = data,
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Outlined.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                    label = { Text(stringResource(R.string.ai_analyze_period)) },
+                )
             }
         }
 
@@ -271,5 +325,33 @@ fun StatsScreen(
                 }
             }
         }
+        }
+
+        // 浮動 AI 按鈕（全域 AI 助手）
+        AiFloatingButton(
+            onClick = { showAiSheet = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(20.dp),
+        )
+    }
+
+    if (showAiSheet) {
+        AiAssistantSheet(
+            onDismiss = { showAiSheet = false },
+            onGoSettings = {
+                showAiSheet = false
+                onGoSettings()
+            },
+        )
+    }
+
+    if (aiState !is FeatureAiViewModel.UiState.Idle) {
+        AiResultDialog(
+            state = aiState,
+            onCancel = aiViewModel::cancel,
+            onGoSettings = onGoSettings,
+            onDismiss = aiViewModel::reset,
+        )
     }
 }

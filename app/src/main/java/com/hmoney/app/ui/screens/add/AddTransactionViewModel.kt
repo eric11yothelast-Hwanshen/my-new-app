@@ -3,12 +3,17 @@ package com.hmoney.app.ui.screens.add
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hmoney.app.R
+import com.hmoney.app.data.repository.AiCallException
 import com.hmoney.app.domain.model.Account
+import com.hmoney.app.domain.model.AiError
+import com.hmoney.app.domain.model.AiSuggestion
+import com.hmoney.app.domain.model.AiTextResult
 import com.hmoney.app.domain.model.Category
 import com.hmoney.app.domain.model.CategoryType
 import com.hmoney.app.domain.model.MoneyTransaction
 import com.hmoney.app.domain.model.TransactionType
 import com.hmoney.app.domain.repository.AccountRepository
+import com.hmoney.app.domain.repository.AiRepository
 import com.hmoney.app.domain.repository.CategoryRepository
 import com.hmoney.app.domain.repository.TransactionRepository
 import com.hmoney.app.ui.common.AmountParser
@@ -18,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -32,9 +38,19 @@ import javax.inject.Inject
 @HiltViewModel
 class AddTransactionViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
+    private val aiRepository: AiRepository,
     accountRepository: AccountRepository,
     categoryRepository: CategoryRepository,
 ) : ViewModel() {
+
+    /** 記帳 AI 輔助狀態：智慧備註潤飾／自動分類／智慧標籤 */
+    sealed class AiState {
+        data object Idle : AiState()
+        data object Loading : AiState()
+        data object NeedNote : AiState()
+        data object Done : AiState()
+        data class Error(val error: AiError) : AiState()
+    }
 
     data class FormState(
         val editingId: Long? = null,
@@ -55,16 +71,20 @@ class AddTransactionViewModel @Inject constructor(
         val form: FormState = FormState(),
         val accounts: List<Account> = emptyList(),
         val categories: List<Category> = emptyList(),
+        val aiState: AiState = AiState.Idle,
     )
 
     private val form = MutableStateFlow(FormState())
+    private val aiState = MutableStateFlow<AiState>(AiState.Idle)
+    private var aiJob: Job? = null
 
     val uiState: StateFlow<UiState> = combine(
         form,
+        aiState,
         accountRepository.observeVisibleWithBalance(),
         categoryRepository.observeAll(CategoryType.EXPENSE),
         categoryRepository.observeAll(CategoryType.INCOME),
-    ) { f, accounts, expenseCategories, incomeCategories ->
+    ) { f, ai, accounts, expenseCategories, incomeCategories ->
         UiState(
             form = f,
             accounts = accounts.map { it.first },
@@ -74,6 +94,7 @@ class AddTransactionViewModel @Inject constructor(
                 TransactionType.INCOME -> incomeCategories
                 TransactionType.TRANSFER -> emptyList()
             },
+            aiState = ai,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -206,4 +227,54 @@ class AddTransactionViewModel @Inject constructor(
     }
 
     fun clearError() = form.update { it.copy(errorRes = null) }
+
+    fun clearAiState() {
+        aiState.value = AiState.Idle
+    }
+
+    fun cancelAi() {
+        aiJob?.cancel()
+        aiState.value = AiState.Idle
+    }
+
+    /**
+     * AI 建議：依備註自動建議分類與 1–3 個標籤並潤飾備註。
+     * 分類僅在符合目前類型的分類清單中比對，使用者仍可手動改選。
+     */
+    fun aiSuggest() {
+        val note = form.value.note.trim()
+        if (note.isBlank()) {
+            aiState.value = AiState.NeedNote
+            return
+        }
+        if (aiState.value is AiState.Loading) return
+        aiState.value = AiState.Loading
+        val categories = uiState.value.categories
+        aiJob = viewModelScope.launch {
+            aiRepository.suggestForNote(note, categories.map { it.name })
+                .onSuccess { suggestion -> applySuggestion(suggestion, note) }
+                .onFailure { e ->
+                    aiState.value = AiState.Error(
+                        (e as? AiCallException)?.error ?: AiError.Parse,
+                    )
+                }
+        }
+    }
+
+    private suspend fun applySuggestion(suggestion: AiSuggestion, originalNote: String) {
+        suggestion.categoryName?.let { name ->
+            uiState.value.categories.firstOrNull { it.name == name }?.let { matched ->
+                form.update { it.copy(categoryId = matched.id) }
+            }
+        }
+        if (suggestion.tags.isNotEmpty()) {
+            form.update { it.copy(tagsText = suggestion.tags.take(3).joinToString(",")) }
+        }
+        when (val polished = aiRepository.polishNote(originalNote)) {
+            is AiTextResult.Success ->
+                form.update { it.copy(note = polished.text.ifBlank { originalNote }) }
+            is AiTextResult.Failure -> Unit
+        }
+        aiState.value = AiState.Done
+    }
 }

@@ -148,6 +148,10 @@
     <string name="add_date_picker">選擇日期</string>
     <string name="add_time_picker">選擇時間</string>
     <string name="add_ok">確定</string>
+    <string name="add_done">完成 ✓</string>
+    <string name="add_discard_title">放棄這筆記錄？</string>
+    <string name="add_discard_confirm">已輸入的內容將不會儲存，確定要放棄嗎？</string>
+    <string name="add_discard_yes">放棄</string>
 
     <!-- 通知 -->
     <string name="notification_title">通知</string>
@@ -221,6 +225,28 @@
     <string name="ai_error_parse">回應格式無法解析，請再試一次</string>
     <string name="ai_error_unknown">發生未知錯誤，請再試一次</string>
     <string name="ai_open_assistant">開啟 AI 助手</string>
+
+    <!-- AI 全面整合 -->
+    <string name="ai_fab">AI 助手</string>
+    <string name="ai_chat_title">AI 助手</string>
+    <string name="ai_chat_hint">問我任何財務問題，例如：我這個月花最多的是什麼？</string>
+    <string name="ai_chat_empty">有什麼財務問題都可以問我，我會參考你的記帳資料回答。</string>
+    <string name="ai_send">送出</string>
+    <string name="ai_cancel">取消</string>
+    <string name="ai_go_settings">前往設定</string>
+    <string name="ai_close">關閉</string>
+    <string name="ai_result_title">AI 分析結果</string>
+    <string name="ai_insight_week">本週 AI 洞察</string>
+    <string name="ai_analyze_period">AI 分析本期</string>
+    <string name="ai_analyze_accounts">AI 解讀帳戶</string>
+    <string name="ai_analyze_batch">批次分析</string>
+    <string name="ai_suggest_note">AI 建議</string>
+    <string name="ai_filter_hint">用自然語言描述想找的交易，例如：上個月和朋友吃飯的</string>
+    <string name="ai_filter_apply">AI 篩選</string>
+    <string name="ai_applied">已套用 AI 建議</string>
+    <string name="ai_need_note">請先輸入備註，AI 才能給予建議</string>
+    <string name="ai_filter_applied">已套用 AI 篩選條件</string>
+    <string name="ai_filter_failed">AI 無法理解這段描述，請換個說法試試</string>
 
     <!-- 備份 -->
     <string name="backup_title">備份與還原</string>

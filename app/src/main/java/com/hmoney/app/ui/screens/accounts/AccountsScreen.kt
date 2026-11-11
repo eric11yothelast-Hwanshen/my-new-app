@@ -18,7 +18,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -47,9 +49,13 @@ import com.hmoney.app.domain.model.Account
 import com.hmoney.app.ui.common.AmountParser
 import com.hmoney.app.ui.common.Formats
 import com.hmoney.app.ui.common.IconMapper
+import com.hmoney.app.ui.components.AiFloatingButton
+import com.hmoney.app.ui.components.AiResultDialog
 import com.hmoney.app.ui.components.EmptyState
 import com.hmoney.app.ui.components.GlassCard
 import com.hmoney.app.ui.components.glassSource
+import com.hmoney.app.ui.screens.ai.AiAssistantSheet
+import com.hmoney.app.ui.screens.ai.FeatureAiViewModel
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.launch
 
@@ -69,14 +75,18 @@ private val accountColors = listOf(
 @Composable
 fun AccountsScreen(
     modifier: Modifier = Modifier,
+    onGoSettings: () -> Unit = {},
     viewModel: AccountsViewModel = hiltViewModel(),
+    aiViewModel: FeatureAiViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val aiState by aiViewModel.uiState.collectAsState()
     val glassState = rememberHazeState()
 
     var editingAccount by remember { mutableStateOf<Account?>(null) }
     var showAddDialog by remember { mutableStateOf(false) }
     var hideTarget by remember { mutableStateOf<Account?>(null) }
+    var showAiSheet by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val deleteBlockedMessage = stringResource(R.string.accounts_delete_fail)
@@ -86,11 +96,17 @@ fun AccountsScreen(
         containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            androidx.compose.material3.ExtendedFloatingActionButton(
-                onClick = { showAddDialog = true },
-                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                text = { Text(stringResource(R.string.accounts_add)) },
-            )
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                AiFloatingButton(onClick = { showAiSheet = true })
+                androidx.compose.material3.ExtendedFloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                    text = { Text(stringResource(R.string.accounts_add)) },
+                )
+            }
         },
     ) { padding ->
         Column(
@@ -103,6 +119,29 @@ fun AccountsScreen(
                 text = stringResource(R.string.accounts_title),
                 style = MaterialTheme.typography.headlineMedium,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+            )
+
+            // AI 解讀帳戶：餘額變化與現金流建議
+            AssistChip(
+                onClick = {
+                    val data = state.accountsWithBalance.joinToString("\n") { (account, balance) ->
+                        "- ${account.name}（${account.currency}）：" +
+                            "${Formats.moneyWithCurrency(balance, account.currency)}"
+                    }
+                    aiViewModel.runText(
+                        title = stringResource(R.string.ai_analyze_accounts),
+                        data = data,
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Outlined.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                },
+                label = { Text(stringResource(R.string.ai_analyze_accounts)) },
+                modifier = Modifier.padding(horizontal = 20.dp),
             )
 
             if (state.accountsWithBalance.isEmpty()) {
@@ -176,6 +215,26 @@ fun AccountsScreen(
                 }
             }
         }
+    }
+
+    // 全域 AI 助手
+    if (showAiSheet) {
+        AiAssistantSheet(
+            onDismiss = { showAiSheet = false },
+            onGoSettings = {
+                showAiSheet = false
+                onGoSettings()
+            },
+        )
+    }
+
+    if (aiState !is FeatureAiViewModel.UiState.Idle) {
+        AiResultDialog(
+            state = aiState,
+            onCancel = aiViewModel::cancel,
+            onGoSettings = onGoSettings,
+            onDismiss = aiViewModel::reset,
+        )
     }
 
     // 新增帳戶

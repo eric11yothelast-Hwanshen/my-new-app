@@ -1,19 +1,25 @@
 package com.hmoney.app.ui.screens.transactions
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -25,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,16 +39,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.hmoney.app.R
 import com.hmoney.app.domain.model.TransactionType
 import com.hmoney.app.ui.common.Formats
+import com.hmoney.app.ui.components.AiFloatingButton
+import com.hmoney.app.ui.components.AiResultDialog
 import com.hmoney.app.ui.components.EmptyState
 import com.hmoney.app.ui.components.TransactionRow
 import com.hmoney.app.ui.components.glassSource
 import com.hmoney.app.ui.screens.add.AddTransactionSheet
+import com.hmoney.app.ui.screens.ai.AiAssistantSheet
+import com.hmoney.app.ui.screens.ai.FeatureAiViewModel
 import dev.chrisbanes.haze.rememberHazeState
 import java.time.Instant
 import java.time.ZoneId
@@ -54,20 +66,59 @@ import java.time.ZoneId
 @Composable
 fun TransactionsScreen(
     modifier: Modifier = Modifier,
+    onGoSettings: () -> Unit = {},
     viewModel: TransactionsViewModel = hiltViewModel(),
+    aiViewModel: FeatureAiViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val aiState by aiViewModel.uiState.collectAsState()
     val glassState = rememberHazeState()
+    val context = LocalContext.current
 
     var editingId by remember { mutableStateOf<Long?>(null) }
     var deletingId by remember { mutableStateOf<Long?>(null) }
     var showDateRange by remember { mutableStateOf(false) }
+    var showAiSheet by remember { mutableStateOf(false) }
+    var aiQuery by remember { mutableStateOf("") }
 
-    Column(
+    // AI 篩選結果：轉成資料庫篩選條件並套用到清單
+    LaunchedEffect(aiState) {
+        when (val s = aiState) {
+            is FeatureAiViewModel.UiState.Filter -> {
+                s.suggestion.categoryName?.let { name ->
+                    state.categories.values
+                        .firstOrNull { it.name == name }
+                        ?.let { viewModel.setCategory(it.id) }
+                }
+                s.suggestion.accountName?.let { name ->
+                    state.accounts.firstOrNull { it.name == name }
+                        ?.let { viewModel.setAccount(it.id) }
+                }
+                viewModel.setKeyword(s.suggestion.keyword ?: "")
+                viewModel.setDateRange(
+                    s.suggestion.startDateEpochMillis,
+                    s.suggestion.endDateEpochMillis,
+                )
+                Toast.makeText(
+                    context,
+                    R.string.ai_filter_applied,
+                    Toast.LENGTH_SHORT,
+                ).show()
+                aiViewModel.reset()
+            }
+
+            else -> Unit
+        }
+    }
+
+    Box(
         modifier = modifier
             .fillMaxSize()
             .glassSource(glassState),
     ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+        ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp)) {
             Text(
                 text = stringResource(R.string.transactions_title),
@@ -81,6 +132,45 @@ fun TransactionsScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            // AI 自然語言搜尋／篩選
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
+                OutlinedTextField(
+                    value = aiQuery,
+                    onValueChange = { aiQuery = it },
+                    placeholder = { Text(stringResource(R.string.ai_filter_hint)) },
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(
+                            Icons.Outlined.AutoAwesome,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(
+                    onClick = {
+                        aiViewModel.interpretFilter(
+                            query = aiQuery,
+                            categoryNames = state.categories.values.map { it.name },
+                            accountNames = state.accounts.map { it.name },
+                        )
+                    },
+                    enabled = aiQuery.isNotBlank() &&
+                        aiState !is FeatureAiViewModel.UiState.Loading,
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Outlined.Send,
+                        contentDescription = stringResource(R.string.ai_filter_apply),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
 
             // 類型篩選
             Row(
@@ -160,7 +250,7 @@ fun TransactionsScreen(
                 }
             }
 
-            // 期間篩選
+            // 期間篩選與批次分析
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = state.filters.startDate != null || state.filters.endDate != null,
@@ -184,6 +274,40 @@ fun TransactionsScreen(
                         Text(stringResource(R.string.transactions_filter_all))
                     }
                 }
+                AssistChip(
+                    onClick = {
+                        val expenseLabel = stringResource(R.string.add_type_expense)
+                        val incomeLabel = stringResource(R.string.add_type_income)
+                        val transferLabel = stringResource(R.string.add_type_transfer)
+                        val data = state.groups
+                            .flatMap { it.transactions }
+                            .take(50)
+                            .joinToString("\n") { tx ->
+                                val typeLabel = when (tx.type) {
+                                    TransactionType.EXPENSE -> expenseLabel
+                                    TransactionType.INCOME -> incomeLabel
+                                    TransactionType.TRANSFER -> transferLabel
+                                }
+                                val accountName = state.accounts
+                                    .firstOrNull { it.id == tx.accountId }?.name ?: ""
+                                val categoryName = state.categories[tx.categoryId]?.name ?: ""
+                                "- ${Formats.date(tx.dateEpochMillis)} $typeLabel " +
+                                    "$accountName $categoryName ${Formats.money(tx.amountCents)} ${tx.note}"
+                            }
+                        aiViewModel.runText(
+                            title = stringResource(R.string.ai_analyze_batch),
+                            data = data,
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Outlined.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                    label = { Text(stringResource(R.string.ai_analyze_batch)) },
+                )
             }
         }
 
@@ -253,11 +377,41 @@ fun TransactionsScreen(
                 }
             }
         }
+        }
+
+        // 浮動 AI 按鈕（全域 AI 助手）
+        AiFloatingButton(
+            onClick = { showAiSheet = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(20.dp),
+        )
     }
 
     // 編輯
     editingId?.let { id ->
         AddTransactionSheet(onDismiss = { editingId = null }, editingId = id)
+    }
+
+    if (showAiSheet) {
+        AiAssistantSheet(
+            onDismiss = { showAiSheet = false },
+            onGoSettings = {
+                showAiSheet = false
+                onGoSettings()
+            },
+        )
+    }
+
+    if (aiState !is FeatureAiViewModel.UiState.Idle &&
+        aiState !is FeatureAiViewModel.UiState.Filter
+    ) {
+        AiResultDialog(
+            state = aiState,
+            onCancel = aiViewModel::cancel,
+            onGoSettings = onGoSettings,
+            onDismiss = aiViewModel::reset,
+        )
     }
 
     // 刪除確認

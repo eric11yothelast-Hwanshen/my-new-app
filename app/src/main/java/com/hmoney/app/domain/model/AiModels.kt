@@ -20,6 +20,28 @@ sealed class AiError {
     data object Parse : AiError()
 }
 
+/** 純文字回應結果（通用 AI 功能共用） */
+sealed class AiTextResult {
+    data class Success(val text: String) : AiTextResult()
+    data class Failure(val error: AiError) : AiTextResult()
+}
+
+/** 記帳 AI 建議：分類＋標籤＋潤飾後備註 */
+data class AiSuggestion(
+    val categoryName: String? = null,
+    val tags: List<String> = emptyList(),
+    val polishedNote: String? = null,
+)
+
+/** 自然語言篩選轉換結果 */
+data class AiFilterSuggestion(
+    val categoryName: String? = null,
+    val accountName: String? = null,
+    val keyword: String? = null,
+    val startDateEpochMillis: Long? = null,
+    val endDateEpochMillis: Long? = null,
+)
+
 /** AI 分析結果（存歷史可回看） */
 data class AiAnalysis(
     val id: Long = 0L,

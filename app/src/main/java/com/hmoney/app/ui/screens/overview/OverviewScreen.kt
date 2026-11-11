@@ -13,11 +13,13 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,12 +35,16 @@ import com.hmoney.app.R
 import com.hmoney.app.domain.model.TransactionType
 import com.hmoney.app.ui.common.Formats
 import com.hmoney.app.ui.common.IconMapper
+import com.hmoney.app.ui.components.AiFloatingButton
+import com.hmoney.app.ui.components.AiResultDialog
 import com.hmoney.app.ui.components.AnimatedAmountText
 import com.hmoney.app.ui.components.EmptyState
 import com.hmoney.app.ui.components.GlassCard
 import com.hmoney.app.ui.components.TransactionRow
 import com.hmoney.app.ui.components.glassSource
 import com.hmoney.app.ui.screens.add.AddTransactionSheet
+import com.hmoney.app.ui.screens.ai.AiAssistantSheet
+import com.hmoney.app.ui.screens.ai.FeatureAiViewModel
 import dev.chrisbanes.haze.rememberHazeState
 
 /**
@@ -47,10 +53,14 @@ import dev.chrisbanes.haze.rememberHazeState
 @Composable
 fun OverviewScreen(
     modifier: Modifier = Modifier,
+    onGoSettings: () -> Unit = {},
     viewModel: OverviewViewModel = hiltViewModel(),
+    aiViewModel: FeatureAiViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val aiState by aiViewModel.uiState.collectAsState()
     var showAddSheet by remember { mutableStateOf(false) }
+    var showAiSheet by remember { mutableStateOf(false) }
     val glassState = rememberHazeState()
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -75,6 +85,18 @@ fun OverviewScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     AnimatedAmountText(cents = state.totalBalanceCents)
+                    // 本週 AI 洞察按鈕
+                    TextButton(
+                        onClick = aiViewModel::weekInsight,
+                        modifier = Modifier.align(Alignment.Start),
+                    ) {
+                        Icon(
+                            Icons.Outlined.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                        Text(" " + stringResource(R.string.ai_insight_week))
+                    }
                 }
             }
 
@@ -201,18 +223,43 @@ fun OverviewScreen(
             }
         }
 
-        // 快速記帳 FAB
-        ExtendedFloatingActionButton(
-            onClick = { showAddSheet = true },
-            icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-            text = { Text(stringResource(R.string.overview_add)) },
+        // 浮動按鈕：AI 助手＋快速記帳
+        Column(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(20.dp),
-        )
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.End,
+        ) {
+            AiFloatingButton(onClick = { showAiSheet = true })
+            ExtendedFloatingActionButton(
+                onClick = { showAddSheet = true },
+                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                text = { Text(stringResource(R.string.overview_add)) },
+            )
+        }
     }
 
     if (showAddSheet) {
         AddTransactionSheet(onDismiss = { showAddSheet = false })
+    }
+
+    if (showAiSheet) {
+        AiAssistantSheet(
+            onDismiss = { showAiSheet = false },
+            onGoSettings = {
+                showAiSheet = false
+                onGoSettings()
+            },
+        )
+    }
+
+    if (aiState !is FeatureAiViewModel.UiState.Idle) {
+        AiResultDialog(
+            state = aiState,
+            onCancel = aiViewModel::cancel,
+            onGoSettings = onGoSettings,
+            onDismiss = aiViewModel::reset,
+        )
     }
 }

@@ -1,5 +1,6 @@
 package com.hmoney.app.ui.screens.add
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,26 +12,34 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Backspace
-import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -46,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -54,6 +64,7 @@ import com.hmoney.app.R
 import com.hmoney.app.domain.model.TransactionType
 import com.hmoney.app.ui.common.Formats
 import com.hmoney.app.ui.common.IconMapper
+import com.hmoney.app.ui.screens.ai.toMessageRes
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -61,7 +72,8 @@ import java.time.ZoneId
 
 /**
  * 記帳 Bottom Sheet：數字鍵盤為主的輸入流程，記完即存。
- * 編輯模式傳入 editingId。
+ * 內容可捲動（小螢幕不裁切鍵盤）、含返回鍵（未儲存確認）與鍵盤列「完成 ✓」送出鍵、
+ * 驗證與 AI 回饋走 Snackbar。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,6 +84,10 @@ fun AddTransactionSheet(
 ) {
     val state by viewModel.uiState.collectAsState()
     val form = state.form
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    var showDiscardConfirm by remember { mutableStateOf(false) }
+    val savedMessage = stringResource(R.string.add_saved)
 
     LaunchedEffect(editingId) {
         if (editingId != null) {
@@ -81,20 +97,76 @@ fun AddTransactionSheet(
         }
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    // 驗證失敗提示（Snackbar，取代佔空間的行內錯誤）
+    LaunchedEffect(form.errorRes) {
+        form.errorRes?.let { errorRes ->
+            snackbarHostState.showSnackbar(context.getString(errorRes))
+            viewModel.clearError()
+        }
+    }
+
+    // AI 建議回饋
+    LaunchedEffect(state.aiState) {
+        when (val ai = state.aiState) {
+            AddTransactionViewModel.AiState.Done -> {
+                snackbarHostState.showSnackbar(context.getString(R.string.ai_applied))
+                viewModel.clearAiState()
+            }
+
+            AddTransactionViewModel.AiState.NeedNote -> {
+                snackbarHostState.showSnackbar(context.getString(R.string.ai_need_note))
+                viewModel.clearAiState()
+            }
+
+            is AddTransactionViewModel.AiState.Error -> {
+                snackbarHostState.showSnackbar(context.getString(ai.error.toMessageRes()))
+                viewModel.clearAiState()
+            }
+
+            else -> Unit
+        }
+    }
+
+    // 是否已有未儲存的輸入（返回時需確認）
+    fun hasUnsavedInput(): Boolean = form.amountText.isNotEmpty() ||
+        form.note.isNotBlank() ||
+        form.tagsText.isNotBlank()
+
+    fun attemptClose() {
+        if (hasUnsavedInput()) {
+            showDiscardConfirm = true
+        } else {
+            onDismiss()
+        }
+    }
+
+    ModalBottomSheet(onDismissRequest = { attemptClose() }) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = stringResource(
-                    if (editingId == null) R.string.add_title else R.string.add_edit_title,
-                ),
-                style = MaterialTheme.typography.titleLarge,
-            )
+            // 標題與返回鍵
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                IconButton(onClick = { attemptClose() }) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.wizard_back),
+                    )
+                }
+                Text(
+                    text = stringResource(
+                        if (editingId == null) R.string.add_title else R.string.add_edit_title,
+                    ),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+            }
 
             // 交易類型：支出／收入／轉帳
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -221,14 +293,47 @@ fun AddTransactionSheet(
                 )
             }
 
+            // 備註＋AI 建議按鈕（潤飾備註／自動分類／智慧標籤）
             OutlinedTextField(
                 value = form.note,
                 onValueChange = viewModel::setNote,
                 label = { Text(stringResource(R.string.add_note)) },
                 placeholder = { Text(stringResource(R.string.add_note_hint)) },
                 singleLine = true,
+                trailingIcon = {
+                    if (state.aiState is AddTransactionViewModel.AiState.Loading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        IconButton(onClick = viewModel::aiSuggest) {
+                            Icon(
+                                Icons.Outlined.AutoAwesome,
+                                contentDescription = stringResource(R.string.ai_suggest_note),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            if (state.aiState is AddTransactionViewModel.AiState.Loading) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.ai_loading),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    TextButton(onClick = viewModel::cancelAi) {
+                        Text(stringResource(R.string.ai_cancel))
+                    }
+                }
+            }
 
             OutlinedTextField(
                 value = form.tagsText,
@@ -239,28 +344,56 @@ fun AddTransactionSheet(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            // 驗證錯誤回饋
-            form.errorRes?.let { errorRes ->
-                Text(
-                    text = stringResource(errorRes),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-
-            // 數字鍵盤
+            // 數字鍵盤（欄寬權重自適應，任何螢幕都完整顯示 0、.、刪除鍵）
             Keypad(
                 onInput = viewModel::onKeypadInput,
                 onBackspace = viewModel::onKeypadBackspace,
             )
 
+            // 鍵盤列送出鍵：完成 ✓（三個分頁一致）
             Button(
-                onClick = { viewModel.save(onSaved = onDismiss) },
+                onClick = {
+                    viewModel.save(
+                        onSaved = {
+                            Toast.makeText(context, savedMessage, Toast.LENGTH_SHORT).show()
+                            onDismiss()
+                        },
+                    )
+                },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(stringResource(R.string.add_save))
+                Icon(Icons.Outlined.Check, contentDescription = null)
+                Text(
+                    text = " " + stringResource(R.string.add_done),
+                    style = MaterialTheme.typography.titleMedium,
+                )
             }
+
+            SnackbarHost(hostState = snackbarHostState)
         }
+    }
+
+    // 返回（放棄）確認對話框
+    if (showDiscardConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDiscardConfirm = false },
+            title = { Text(stringResource(R.string.add_discard_title)) },
+            text = { Text(stringResource(R.string.add_discard_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDiscardConfirm = false
+                        viewModel.reset()
+                        onDismiss()
+                    },
+                ) { Text(stringResource(R.string.add_discard_yes)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardConfirm = false }) {
+                    Text(stringResource(R.string.add_cancel))
+                }
+            },
+        )
     }
 }
 
@@ -382,7 +515,7 @@ private fun TimeFieldButton(
     )
 }
 
-/** 數字鍵盤：1–9、0、小數點、退格 */
+/** 數字鍵盤：1–9、0、小數點、退格（weight 版面自適應，不會被裁切） */
 @Composable
 private fun Keypad(
     onInput: (Char) -> Unit,
