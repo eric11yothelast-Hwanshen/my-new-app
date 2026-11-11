@@ -9,9 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -148,14 +145,20 @@ fun AddTransactionSheet(
     }
 
     ModalBottomSheet(onDismissRequest = { attemptClose() }) {
+        // 單一捲動結構：外層 Column 不捲動；中段 weight(1f) 可捲動；鍵盤與完成鍵固定底部，永遠完整顯示。
+        // 注意：不得在中段捲動區內再放 LazyVerticalGrid／LazyColumn 等捲動元件（實機會拋無限高度例外）。
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 20.dp),
         ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
             // 標題與返回鍵
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -251,36 +254,10 @@ fun AddTransactionSheet(
                     text = stringResource(R.string.add_category),
                     style = MaterialTheme.typography.titleSmall,
                 )
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(4),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 4.dp),
-                    userScrollEnabled = false,
-                ) {
-                    items(state.categories, key = { it.id }) { category ->
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { viewModel.setCategory(category.id) }
-                                .padding(8.dp),
-                        ) {
-                            Icon(
-                                imageVector = IconMapper.iconOf(category.iconKey),
-                                contentDescription = null,
-                                tint = androidx.compose.ui.graphics.Color(category.colorArgb),
-                                modifier = Modifier.size(24.dp),
-                            )
-                            Text(
-                                text = category.name,
-                                style = MaterialTheme.typography.labelSmall,
-                                maxLines = 1,
-                            )
-                        }
-                    }
-                }
+                CategoryGrid(
+                    categories = state.categories,
+                    onSelect = viewModel::setCategory,
+                )
             }
 
             // 日期與時間
@@ -350,8 +327,9 @@ fun AddTransactionSheet(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+            }
 
-            // 數字鍵盤（欄寬權重自適應，任何螢幕都完整顯示 0、.、刪除鍵）
+            // 數字鍵盤（固定底部，不隨內容捲動，任何螢幕都完整顯示 0、.、刪除鍵）
             Keypad(
                 onInput = viewModel::onKeypadInput,
                 onBackspace = viewModel::onKeypadBackspace,
@@ -367,7 +345,9 @@ fun AddTransactionSheet(
                         },
                     )
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp, bottom = 12.dp),
             ) {
                 Icon(Icons.Outlined.Check, contentDescription = null)
                 Text(
@@ -401,6 +381,57 @@ fun AddTransactionSheet(
                 }
             },
         )
+    }
+}
+
+/**
+ * 分類格：非捲動的固定 4 欄格
+ * 原本使用 LazyVerticalGrid，在可捲動父層內會被以無限高度測量而拋例外（實機閃退根因），
+ * 改為純 Column／Row 組合，分類數量有限（內建種子＋使用者自訂）不影響效能。
+ */
+@Composable
+private fun CategoryGrid(
+    categories: List<com.hmoney.app.domain.model.Category>,
+    onSelect: (Long) -> Unit,
+) {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 4.dp),
+    ) {
+        categories.chunked(4).forEach { rowCategories ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                rowCategories.forEach { category ->
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onSelect(category.id) }
+                            .padding(8.dp),
+                    ) {
+                        Icon(
+                            imageVector = IconMapper.iconOf(category.iconKey),
+                            contentDescription = null,
+                            tint = androidx.compose.ui.graphics.Color(category.colorArgb),
+                            modifier = Modifier.size(24.dp),
+                        )
+                        Text(
+                            text = category.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                        )
+                    }
+                }
+                repeat(4 - rowCategories.size) {
+                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
     }
 }
 
