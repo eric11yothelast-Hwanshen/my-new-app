@@ -1,5 +1,6 @@
-# 最小建置驗證：每次 push 到 main 驗證程式碼可編譯
-# 完整 CI/CD（測試、Release 簽章、Release 發布）於後續階段擴充
+# 完整建置與發布管線：
+# 測試 → assembleDebug → assembleRelease（R8 混淆＋簽章）→ 產物命名 → GitHub Release
+# Release 建立失敗時，fallback 將 APK commit 至 output/ 供直接下載
 name: build
 
 on:
@@ -7,9 +8,12 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
-    name: Assemble debug APK
+    name: Test, build and release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -30,8 +34,73 @@ jobs:
       - name: Assemble debug APK
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Upload debug APK
+      # 簽章讀取順序：Secrets → 倉庫 .private/ → 都沒有則 fallback debug 簽章（gradle 內處理）
+      - name: Decode keystore from Secrets
+        id: secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/hmoney-release.p12"
+            echo "file=$RUNNER_TEMP/hmoney-release.p12" >> "$GITHUB_OUTPUT"
+          else
+            echo "無 KEYSTORE_BASE64 Secret，改用倉庫 .private/ 內的 keystore"
+          fi
+
+      - name: Assemble release APK (R8 + signing)
+        env:
+          KEYSTORE_FILE: ${{ steps.secrets.outputs.file }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Rename artifacts
+        id: version
+        run: |
+          VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          mkdir -p dist
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/Hmoney-v$VERSION-debug.apk"
+          cp app/build/outputs/apk/release/app-release.apk "dist/Hmoney-v$VERSION-release.apk"
+          ls -la dist/
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Hmoney-debug
-          path: app/build/outputs/apk/debug/*.apk
+          name: Hmoney-v${{ steps.version.outputs.version }}
+          path: dist/*.apk
+
+      - name: Create tag and GitHub Release
+        id: release
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          TAG="v$VERSION"
+          # 同版本重跑時加上時間後綴，避免 tag 衝突
+          if git ls-remote --exit-code --tags origin "$TAG" >/dev/null 2>&1; then
+            TAG="$TAG-$(date +%Y%m%d%H%M%S)"
+          fi
+          gh release create "$TAG" \
+            --title "幻帳 Hmoney $TAG" \
+            --notes "幻帳（Hmoney）$TAG。可直接下載 APK 安裝（建議使用 release 版）。" \
+            "dist/Hmoney-v$VERSION-debug.apk" \
+            "dist/Hmoney-v$VERSION-release.apk"
+
+      # Release 失敗 fallback：APK commit 至 output/，不中斷交付
+      - name: Fallback - commit APKs to output/
+        if: steps.release.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p output
+          cp "dist/Hmoney-v$VERSION-debug.apk" "dist/Hmoney-v$VERSION-release.apk" output/
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add output/
+          git commit -m "ci: 發布 v$VERSION APK 至 output/（Release 建立失敗的 fallback）"
+          git push

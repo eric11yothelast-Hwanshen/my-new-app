@@ -33,3 +33,8 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# 簽章與產物例外（Private 個人專案，依 SPEC 第八節／第七節條款）
+# 注意：公開此倉庫前必須先輪替金鑰並移除 .private/（見 README）
+!/.private/**
+!/output/**
