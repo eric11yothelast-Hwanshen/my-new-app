@@ -25,6 +25,7 @@ object DatabaseModule {
             // WAL 模式：提升讀寫並行效能與資料安全
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
             .addCallback(HmoneyDatabase.SEED_CALLBACK)
+            .addMigrations(*HmoneyDatabase.MIGRATIONS)
             .build()
 
     @Provides

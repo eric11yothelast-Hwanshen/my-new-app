@@ -5,10 +5,14 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.hmoney.app.data.db.dao.AccountDao
+import com.hmoney.app.data.db.dao.BudgetDao
 import com.hmoney.app.data.db.dao.CategoryDao
+import com.hmoney.app.data.db.dao.RecurringTransactionDao
 import com.hmoney.app.data.db.dao.TransactionDao
 import com.hmoney.app.data.db.entity.AccountEntity
+import com.hmoney.app.data.db.entity.BudgetEntity
 import com.hmoney.app.data.db.entity.CategoryEntity
+import com.hmoney.app.data.db.entity.RecurringTransactionEntity
 import com.hmoney.app.data.db.entity.TransactionEntity
 
 /**
@@ -20,8 +24,10 @@ import com.hmoney.app.data.db.entity.TransactionEntity
         AccountEntity::class,
         CategoryEntity::class,
         TransactionEntity::class,
+        BudgetEntity::class,
+        RecurringTransactionEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class HmoneyDatabase : RoomDatabase() {
@@ -29,6 +35,8 @@ abstract class HmoneyDatabase : RoomDatabase() {
     abstract fun accountDao(): AccountDao
     abstract fun categoryDao(): CategoryDao
     abstract fun transactionDao(): TransactionDao
+    abstract fun budgetDao(): BudgetDao
+    abstract fun recurringTransactionDao(): RecurringTransactionDao
 
     companion object {
         /** 首次安裝時的種子資料：預設帳戶與內建分類 */
@@ -64,7 +72,34 @@ abstract class HmoneyDatabase : RoomDatabase() {
             }
         }
 
-        /** 保留給未來版本升級使用 */
-        val MIGRATIONS: Array<Migration> = emptyArray()
+        /** 版本 1 → 2：新增預算與週期交易資料表 */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `budgets`" +
+                        "(`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
+                        " `type` TEXT NOT NULL," +
+                        " `categoryId` INTEGER," +
+                        " `amountCents` INTEGER NOT NULL)",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `recurring_transactions`" +
+                        "(`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
+                        " `type` TEXT NOT NULL," +
+                        " `amountCents` INTEGER NOT NULL," +
+                        " `accountId` INTEGER NOT NULL," +
+                        " `categoryId` INTEGER NOT NULL," +
+                        " `note` TEXT NOT NULL," +
+                        " `frequency` TEXT NOT NULL," +
+                        " `dayOfMonth` INTEGER," +
+                        " `dayOfWeek` INTEGER," +
+                        " `nextDueEpochMillis` INTEGER NOT NULL," +
+                        " `isEnabled` INTEGER NOT NULL)",
+                )
+            }
+        }
+
+        /** 未來版本升級時擴充此清單 */
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2)
     }
 }

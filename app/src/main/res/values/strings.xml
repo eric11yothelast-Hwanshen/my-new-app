@@ -42,6 +42,50 @@
     <string name="stats_title">統計</string>
     <string name="stats_description">這裡會顯示支出分類占比、收支趨勢與分類排行榜，可依日／週／月／年切換。</string>
     <string name="stats_empty">這個區間還沒有資料</string>
+    <string name="stats_period_day">日</string>
+    <string name="stats_period_week">週</string>
+    <string name="stats_period_month">月</string>
+    <string name="stats_period_year">年</string>
+    <string name="stats_all_accounts">全部帳戶</string>
+    <string name="stats_period_expense">期間支出</string>
+    <string name="stats_period_income">期間收入</string>
+    <string name="stats_category_share">支出分類占比</string>
+    <string name="stats_trend">收支趨勢</string>
+    <string name="stats_ranking">分類支出排行榜（前期增減）</string>
+
+    <!-- 預算 -->
+    <string name="budget_title">預算</string>
+    <string name="budget_total">月總預算</string>
+    <string name="budget_total_not_set">尚未設定</string>
+    <string name="budget_set">設定預算</string>
+    <string name="budget_edit">編輯</string>
+    <string name="budget_category_hint">點選分類可設定該分類的月預算</string>
+    <string name="budget_amount_hint">0.00</string>
+    <string name="budget_spent_of">已花 %1$s / %2$s</string>
+    <string name="budget_over">已超支！</string>
+    <string name="budget_warning">已達預算 80%%</string>
+    <string name="budget_remove">移除預算</string>
+
+    <!-- 週期交易 -->
+    <string name="recurring_title">週期交易</string>
+    <string name="recurring_empty">尚無週期交易，新增房租、訂閱或薪水等固定收支</string>
+    <string name="recurring_add">新增週期交易</string>
+    <string name="recurring_edit">編輯週期交易</string>
+    <string name="recurring_frequency_weekly">每週</string>
+    <string name="recurring_frequency_monthly">每月</string>
+    <string name="recurring_day_of_week">重複日（星期）</string>
+    <string name="recurring_day_of_month">重複日（每月幾號）</string>
+    <string name="recurring_day_of_month_hint">1–31</string>
+    <string name="recurring_next_due">下次入帳：%1$s</string>
+    <string name="recurring_enabled">啟用</string>
+    <string name="recurring_error">請完整填寫金額、帳戶、分類與重複設定</string>
+    <string name="recurring_weekday_1">一</string>
+    <string name="recurring_weekday_2">二</string>
+    <string name="recurring_weekday_3">三</string>
+    <string name="recurring_weekday_4">四</string>
+    <string name="recurring_weekday_5">五</string>
+    <string name="recurring_weekday_6">六</string>
+    <string name="recurring_weekday_7">日</string>
 
     <!-- 帳戶頁 -->
     <string name="accounts_title">帳戶</string>

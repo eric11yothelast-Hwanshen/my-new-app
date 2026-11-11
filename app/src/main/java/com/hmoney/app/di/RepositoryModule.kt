@@ -1,11 +1,15 @@
 package com.hmoney.app.di
 
 import com.hmoney.app.data.repository.AccountRepositoryImpl
+import com.hmoney.app.data.repository.BudgetRepositoryImpl
 import com.hmoney.app.data.repository.CategoryRepositoryImpl
+import com.hmoney.app.data.repository.RecurringRepositoryImpl
 import com.hmoney.app.data.repository.SettingsRepositoryImpl
 import com.hmoney.app.data.repository.TransactionRepositoryImpl
 import com.hmoney.app.domain.repository.AccountRepository
+import com.hmoney.app.domain.repository.BudgetRepository
 import com.hmoney.app.domain.repository.CategoryRepository
+import com.hmoney.app.domain.repository.RecurringRepository
 import com.hmoney.app.domain.repository.SettingsRepository
 import com.hmoney.app.domain.repository.TransactionRepository
 import dagger.Binds
@@ -34,4 +38,12 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBudgetRepository(impl: BudgetRepositoryImpl): BudgetRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindRecurringRepository(impl: RecurringRepositoryImpl): RecurringRepository
 }
