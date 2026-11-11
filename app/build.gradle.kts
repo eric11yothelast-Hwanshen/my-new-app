@@ -60,17 +60,31 @@ android {
         versionName = "1.0.0"
     }
 
+    // 以不衝突的區域變數承接（避免 lambda 內同名屬性自我賦值）
+    val ksFile = keystoreFile
+    val ksStorePassword = keystorePassword
+    val ksAlias = keyAlias
+    val ksKeyPassword = keyPassword
+
     signingConfigs {
         if (hasReleaseSigning) {
             create("release") {
-                storeFile = keystoreFile
-                storePassword = keystorePassword
-                this.keyAlias = keyAlias
-                this.keyPassword = keyPassword
-                enableV1Signing = true
-                enableV2Signing = true
+                storeFile = ksFile
+                storePassword = ksStorePassword
+                keyAlias = ksAlias
+                keyPassword = ksKeyPassword
             }
         }
+    }
+
+    // 診斷：確認簽章屬性真的寫入
+    if (hasReleaseSigning) {
+        val cfg = signingConfigs.getByName("release")
+        println(
+            "HMONEY_SIGNING2: storeFileSet=${cfg.storeFile != null}, " +
+                "storePasswordSet=${!cfg.storePassword.isNullOrBlank()}, " +
+                "keyAliasSet=${!cfg.keyAlias.isNullOrBlank()}",
+        )
     }
 
     buildTypes {
