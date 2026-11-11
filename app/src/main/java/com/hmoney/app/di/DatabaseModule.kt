@@ -36,4 +36,11 @@ object DatabaseModule {
 
     @Provides
     fun provideTransactionDao(database: HmoneyDatabase) = database.transactionDao()
+
+    @Provides
+    fun provideBudgetDao(database: HmoneyDatabase) = database.budgetDao()
+
+    @Provides
+    fun provideRecurringTransactionDao(database: HmoneyDatabase) =
+        database.recurringTransactionDao()
 }
