@@ -35,6 +35,9 @@
     <string name="transactions_filter_account">帳戶</string>
     <string name="transactions_filter_category">分類</string>
     <string name="transactions_filter_date">期間</string>
+    <string name="transactions_filter_start">開始</string>
+    <string name="transactions_filter_end">結束</string>
+    <string name="transactions_filter_not_selected">尚未選擇</string>
     <string name="transactions_deleted">已刪除這筆記錄</string>
     <string name="transactions_filter_all">全部</string>
     <string name="transactions_day_total">小計</string>

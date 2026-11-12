@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -20,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Delete
@@ -28,6 +30,8 @@ import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.DateRangePicker
+import androidx.compose.material3.DateRangePickerState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -50,6 +54,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -497,42 +503,107 @@ fun TransactionsScreen(
             initialSelectedStartDateMillis = state.filters.startDate,
             initialSelectedEndDateMillis = state.filters.endDate,
         )
-        AlertDialog(
+        Dialog(
             onDismissRequest = { showDateRange = false },
-            title = { Text(stringResource(R.string.transactions_filter_date)) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
             properties = DialogProperties(usePlatformDefaultWidth = false),
-            text = {
-                DateRangePicker(
-                    state = pickerState,
-                    showModeToggle = false,
-                    title = {},
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 480.dp),
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        // 期間以「日」為單位：起始日 00:00 ～結束日 23:59
-                        val startMillis = pickerState.selectedStartDateMillis
-                        val endMillis = pickerState.selectedEndDateMillis
-                            ?.let { Formats.toLocalDate(it).plusDays(1)
-                                .atStartOfDay(java.time.ZoneId.systemDefault())
-                                .toInstant().toEpochMilli() - 1 }
-                        viewModel.setDateRange(startMillis, endMillis)
-                        showDateRange = false
-                    },
-                ) { Text(stringResource(R.string.common_confirm)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDateRange = false }) {
-                    Text(stringResource(R.string.common_cancel))
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 480.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = 6.dp,
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.transactions_filter_date),
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                    // 自繪選取狀態列取代內建 headline：兩欄等寬不重疊、不截斷
+                    DateRangeSelectionRow(state = pickerState)
+                    DateRangePicker(
+                        state = pickerState,
+                        showModeToggle = false,
+                        title = {},
+                        headline = {},
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 480.dp),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        TextButton(onClick = { showDateRange = false }) {
+                            Text(stringResource(R.string.common_cancel))
+                        }
+                        TextButton(
+                            onClick = {
+                                // 期間以「日」為單位：起始日 00:00 ～結束日 23:59
+                                val startMillis = pickerState.selectedStartDateMillis
+                                val endMillis = pickerState.selectedEndDateMillis
+                                    ?.let { Formats.toLocalDate(it).plusDays(1)
+                                        .atStartOfDay(java.time.ZoneId.systemDefault())
+                                        .toInstant().toEpochMilli() - 1 }
+                                viewModel.setDateRange(startMillis, endMillis)
+                                showDateRange = false
+                            },
+                        ) { Text(stringResource(R.string.common_confirm)) }
+                    }
                 }
-            },
+            }
+        }
+    }
+}
+
+/** 自繪選取狀態列：左右兩欄等寬（各 weight(1f)），任何寬度與 fontScale 皆不重疊、不截斷 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DateRangeSelectionRow(state: DateRangePickerState) {
+    val notSelected = stringResource(R.string.transactions_filter_not_selected)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.transactions_filter_start),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = state.selectedStartDateMillis?.let { Formats.date(it) }
+                    ?: notSelected,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+            contentDescription = null,
+            modifier = Modifier
+                .padding(horizontal = 8.dp)
+                .size(16.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.transactions_filter_end),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = state.selectedEndDateMillis?.let { Formats.date(it) }
+                    ?: notSelected,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }

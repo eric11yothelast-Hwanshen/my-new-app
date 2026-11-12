@@ -19,7 +19,15 @@
 
 ## Session 紀錄
 
-- **Session 24（期間選取器寬度重疊修復＋MarkdownText 擴充：有序清單／分隔線／標題分級，已完成）**：只動 TransactionsScreen 的期間選取對話框與 MarkdownText，不動資料層與 AddTransactionSheet。
+- **Session 25（期間選取器「結束日期」右側截斷最終修復，已完成）**：只動 TransactionsScreen 的期間對話框與 strings.xml，功能流程完全不變。
+  - **根因（請勿誤改警示）**：寬度被三層邊距疊掉——AlertDialog 內建 padding＋自加 16dp＋picker 內建邊距；且 DateRangePicker 的內建 headline（開始–結束日期）是 M3 內部固定排版，窄螢幕或大字體（fontScale）下右側結束日期被截斷。**勿把 AlertDialog 的 horizontal 16dp padding 加回去**——與內建 padding 疊加正是寬度不足主因。
+  - **修復 1（自繪 headline）**：DateRangePicker 傳 `title = {}` 與 `headline = {}` 捨棄內建排版，改為 picker 上方自繪 `DateRangeSelectionRow`：Row 內左右兩個欄位各 `Modifier.weight(1f)`（任何寬度與 fontScale 皆等寬、不重疊），左「開始」右「結束」（labelSmall＋onSurfaceVariant），中間 ArrowForward 小圖示；日期以 Formats.date 顯示、未選顯示「尚未選擇」；文字 maxLines=1＋TextOverflow.Ellipsis（最多省略號、絕不溢出）。
+  - **修復 2（容器改自組）**：捨棄 AlertDialog，改 `Dialog(usePlatformDefaultWidth = false)`＋`Surface(fillMaxWidth().widthIn(max = 480.dp), shape = extraLarge, color = surfaceContainerHigh, tonalElevation = 6.dp)` 自組容器——平板寬度上限 480dp 不過寬，手機全寬無三層邊距疊加；內部 Column padding(16.dp) 統一留白，標題「期間」titleLarge，底部取消／確定 TextButton 行為與 setDateRange 流程未動（含結束日 23:59 換算）。
+  - **新字串**：transactions_filter_start（開始）、transactions_filter_end（結束）、transactions_filter_not_selected（尚未選擇）。
+  - **記帳頁**：確認無 DateRangePicker（單日 DatePickerDialog），不需改。
+  - **驗證方式**：沙箱無 JDK/Android SDK，括號平衡以 Python 檢查；lint＋單元測試＋雙 APK 由 GitHub Actions 執行；實機請以 fontScale 1.3（設定→顯示→字體最大）驗證雙欄完整顯示。
+
+（期間選取器寬度重疊修復＋MarkdownText 擴充：有序清單／分隔線／標題分級，已完成）**：只動 TransactionsScreen 的期間選取對話框與 MarkdownText，不動資料層與 AddTransactionSheet。
   - **Bug 1（期間選取器雙欄標頭重疊）**：根因＝M3 AlertDialog 預設對話框寬度上限，DateRangePicker 內部「開始日／結束日」雙欄標頭在窄螢幕互相擠壓。修復＝該 AlertDialog 加 `properties = DialogProperties(usePlatformDefaultWidth = false)`＋`modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)`，DateRangePicker 維持 `fillMaxWidth().heightIn(max = 480.dp)`，並設 `title = {}` 移除與 AlertDialog「選取日期」重複的內建標頭。全專案僅明細頁有 DateRangePicker（記帳頁是單日 DatePickerDialog，無此問題），setDateRange 流程未動。
   - **Bug 2（MarkdownText 擴充，請勿誤改）**：parseMarkdown 新增支援——(1) 分隔線：整行僅 3 個以上連續「-」「*」「—」（允許前後空白）→ MdLine.divider，渲染 HorizontalDivider 上下 8dp padding，不印字元；(2) 有序清單：行首「數字. 」→ MdLine.orderedNumber 保留編號（渲染粗體「1. 」前綴），內容走既有行內解析，**不疊圓點**；(3) 標題收尾 hash：「### 標題 ##」行尾以空白分隔的裝飾 hash 剝除（stripTrailingHashes，保守：無空白分隔不動）；(4) 標題分級：headingLevel 1–3 對應 fontSize 20/18/16 sp（皆粗體）。**擴充後仍維持零正則、零依賴、保守字串掃描、不拋例外——不得改為正則或第三方套件**。渲染結構由單一 Text 改為 Column（每行一個 Text＋分隔線插 HorizontalDivider），呼叫端簽名不變。
   - **新測試**：MarkdownParserTest 補 4 案例（分隔線／有序清單保留編號／標題收尾 hash＋分級／未支援符號原樣），既有 4 案例未破壞，共 8 案例。
