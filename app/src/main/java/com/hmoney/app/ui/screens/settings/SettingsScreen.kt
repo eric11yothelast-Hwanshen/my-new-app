@@ -1,5 +1,7 @@
 package com.hmoney.app.ui.screens.settings
 
+import android.os.Build
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,7 +40,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.hmoney.app.R
@@ -187,6 +191,8 @@ fun SettingsScreen(
 
         // ===== 備份與還原 =====
         BackupSection()
+
+        VersionFooter()
     }
 
     // 預算儲存回饋（Snackbar）
@@ -889,5 +895,33 @@ private fun RecurringAddDialog(
                 Text(stringResource(R.string.common_cancel))
             }
         },
+    )
+}
+
+/**
+ * 版本資訊：versionName + versionCode（＝CI GITHUB_RUN_NUMBER build 流水號）。
+ * 用途：實測時對照 build 版本，避免舊 build 誤判。
+ * 請勿誤改：versionCode 即 GITHUB_RUN_NUMBER build 流水號，勿改為固定值。
+ */
+@Composable
+private fun VersionFooter() {
+    val context = LocalContext.current
+    val info = remember {
+        context.packageManager.getPackageInfo(context.packageName, 0)
+    }
+    val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        info.longVersionCode
+    } else {
+        @Suppress("DEPRECATION")
+        info.versionCode.toLong()
+    }
+    Text(
+        text = stringResource(R.string.settings_version_footer, info.versionName ?: "", versionCode),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
     )
 }
