@@ -19,6 +19,13 @@
 
 ## Session 紀錄
 
+- **Session 30（AI 回覆片語重複修復：取樣懲罰參數＋400 相容性重試，已完成）**：修復實機 AI 回覆出現片語層級重複（例：「建議確認是否有未記錄的交易。建議確認是否有未記錄的交易。」）。App 端 chat()→callRaw()→extractContent()→MarkdownText 渲染鏈逐層檢查無重複拼接邏輯，重複來源為模型輸出本身退化；原 request() 請求 body 只有 model / messages / temperature(0.4)，無任何重複懲罰參數。
+  - **懲罰參數（請勿誤改）**：AiRepositoryImpl.request() 的 body 新增 `frequency_penalty: 0.3`、`presence_penalty: 0.2`、`max_tokens: 1024`（對話與分析類呼叫一律生效，含 analyzeWeek 的 execute() 路徑，JSON 輸出解析不受影響）。**勿調高或移除**——0.3/0.2 為抑制片語重複又不傷正常內容的保守值；max_tokens 1024 對本 App 回覆長度已足夠，過長回覆本來也無必要。
+  - **400 相容性重試（請勿誤改）**：部分 OpenAI 相容端點對不支援的參數會回 400。request() 收到 400 時，移除 frequency_penalty / presence_penalty / max_tokens 後**只重試一次（不迴圈）**，重試再失敗才回 AiError.Http(400)。勿改成無限重試或對其他狀態碼也重試——401/403/429 的既有錯誤分流不受影響。
+  - **chat() prompt**：systemPrompt 尾端加「同一句話或相似句子不要重複出現。」（僅 chat()；polishNote / suggestForNote / interpretFilter / analyzeData / analyzeWeek 的 prompt 未動）。
+  - **範圍控制**：僅改 AiRepositoryImpl.kt（request() 與 chat()）與本文件，其他檔案未動；AddTransactionSheet 與 AiAssistantSheet 的捲動／sheetState 結構未觸碰。
+  - **驗證方式**：沙箱無 JDK/Android SDK（與先前 session 相同），lint（Error 擋建置）＋單元測試＋雙 APK 簽署由 GitHub Actions 執行；實機驗收＝同一問題（如「我這個月用了多少錢」）重複詢問 2–3 次，回覆不再出現片語重複。
+
 - **Session 29（AI 對話 session 生命週期重構：急切建立→延遲建立＋洞察 badge 已讀語意，已完成）**：修正「對話刪不掉／清空後又冒新對話／越積越多」「不自動命名」「✨ 圓點關不掉」三組實機症狀的共同根因。
   - **延遲建立（核心決策，請勿誤改）**：currentSessionId == 0 定義為「無進行中對話」——UI 顯示空狀態、輸入照常可用；**只有送出第一則訊息（send 路徑的 ensureSessionForSend）才建立 session**；newSession() 只把 DataStore 的 currentSessionId 歸零、絕不建 DB 記錄；deleteSession 刪目前對話→歸零不補建；clearAll 全刪→歸零不補建。DataStore currentSessionId 為單一事實來源（syncActiveSession 以它同步，多 VM 實例不會競態各建）。**勿把 session 建立加回 newSession/deleteSession/clearAll/init**。
   - **髒資料清理**：VM init 一次性呼叫 chatRepository.deleteEmptySessions()（SQL：刪除零訊息的空 session），之後因延遲建立不會再產生空 session。

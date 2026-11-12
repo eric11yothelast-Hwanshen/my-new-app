@@ -24,10 +24,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.ResponseBody
 import org.json.JSONArray
 import org.json.JSONObject
 import retrofit2.HttpException
+import retrofit2.Response
 import java.io.IOException
 import java.time.LocalDate
 import java.time.ZoneId
@@ -88,7 +91,8 @@ class AiRepositoryImpl @Inject constructor(
 
     override suspend fun chat(question: String, includeContext: Boolean): AiTextResult {
         val systemPrompt = "你是一位專業的個人財務助理，請以繁體中文回答使用者的問題。" +
-            "回答精簡有條理，並基於提供的記帳資料。"
+            "回答精簡有條理，並基於提供的記帳資料。" +
+            "同一句話或相似句子不要重複出現。"
         if (!includeContext) {
             // 純聊天模式：不附任何財務資料，兼顧隱私
             return callRaw(
@@ -374,13 +378,21 @@ class AiRepositoryImpl @Inject constructor(
             .trim()
     }.getOrNull()
 
-    /** 共用 HTTP 請求：回傳模型回覆內容（String）或 AiError */
+    /**
+     * 共用 HTTP 請求：回傳模型回覆內容（String）或 AiError。
+     * 片語重複防護：frequency_penalty／presence_penalty 抑制模型輸出重複，
+     * max_tokens 上限避免過長回覆；部分相容端點不支援這些參數會回 400，
+     * 此時移除三個參數後僅重試一次（不迴圈），再失敗才回 AiError.Http(400)。
+     * （請勿誤改：參數值與「400 只重試一次」機制是 AI 回覆重複的修復核心。）
+     */
     private suspend fun request(
         config: AiConfig,
         systemPrompt: String,
         userPrompt: String,
     ): Any {
-        val body = JSONObject().apply {
+        val endpoint = config.baseUrl.trimEnd('/') + "/chat/completions"
+
+        fun buildBody(withSamplingControls: Boolean): RequestBody = JSONObject().apply {
             put("model", config.model)
             put(
                 "messages",
@@ -389,21 +401,34 @@ class AiRepositoryImpl @Inject constructor(
                     .put(JSONObject().put("role", "user").put("content", userPrompt)),
             )
             put("temperature", 0.4)
+            if (withSamplingControls) {
+                put("frequency_penalty", 0.3)
+                put("presence_penalty", 0.2)
+                put("max_tokens", 1024)
+            }
         }.toString().toRequestBody(jsonMediaType)
 
-        val endpoint = config.baseUrl.trimEnd('/') + "/chat/completions"
+        fun toResult(response: Response<ResponseBody>): Any = when {
+            response.code() == 401 || response.code() == 403 -> AiError.Unauthorized
+            response.code() == 429 -> AiError.QuotaExceeded
+            !response.isSuccessful -> AiError.Http(response.code())
+            else -> response.body()?.string() ?: AiError.Parse
+        }
 
         return try {
             val response = aiApi.chat(
                 url = endpoint,
                 authorization = "Bearer ${config.apiKey}",
-                body = body,
+                body = buildBody(true),
             )
-            when {
-                response.code() == 401 || response.code() == 403 -> AiError.Unauthorized
-                response.code() == 429 -> AiError.QuotaExceeded
-                !response.isSuccessful -> AiError.Http(response.code())
-                else -> response.body()?.string() ?: AiError.Parse
+            if (response.code() == 400) {
+                aiApi.chat(
+                    url = endpoint,
+                    authorization = "Bearer ${config.apiKey}",
+                    body = buildBody(false),
+                ).let(::toResult)
+            } else {
+                toResult(response)
             }
         } catch (e: IOException) {
             AiError.Network
