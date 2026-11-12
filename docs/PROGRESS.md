@@ -19,6 +19,13 @@
 
 ## Session 紀錄
 
+- **Session 34（AI 回覆「整段／開頭句重複」最終根因修復：MarkdownText 渲染迴圈 Plain 段雙重 append，已完成）**：多輪追查（Session 31–33 皆往模型端／內容層修）後，於渲染層查實真兇——MarkdownText.kt 的 segment 渲染迴圈中，when 的 MdSegment.Plain 分支內先 append(segment.text) 一次，迴圈下方又無條件 append(segment.text) 一次，每個純文字段落因此顯示兩次；DB 原文僅一份，模型端與 parseMarkdown 解析層皆正常。
+  - **修復（僅改 MarkdownText.kt 與 MarkdownParserTest.kt）**：when 的 Plain 分支改為 Unit（不做事），保留迴圈下方統一的 append(segment.text)——每個 segment 恰好 append 一次；Bold／Italic／Code 分支只 pushStyle、靠下方 append，行為完全不變。parseMarkdown 一字未動。
+  - **可測性重構**：單行 → AnnotatedString 的組字邏輯抽成 internal 純函式 buildMdAnnotatedString(line, codeBackground, codeForeground)，MarkdownText composable 改呼叫它（remember 快取照舊）。
+  - **單元測試**：新增 MarkdownRenderTest 六案——單一 Plain 段輸出恰等原文不重複、「abc **bold** def」輸出 "abc bold def" 且 bold 與粗體 span 各一次、bullet 前綴（•）與正文各一次、有序清單編號加粗一次正文一次、標題行正文一次且套標題樣式、行內程式碼文字與 Monospace 樣式各一次；既有 parseMarkdown 測試未動。
+  - **勿改警示（已寫入 MarkdownText.kt 檔頭與 buildMdAnnotatedString）**：渲染時每個 segment 恰好 append 一次——when 分支只負責 pushStyle，不得在分支內 append（Session 34 修正的重複渲染根因，請勿誤改回）。
+  - **防禦性設計保留**：Session 31 三形態解析與 sanitize、Session 32 reasoning_effort=none 與 text 區塊重疊去重、Session 33 collapseFullTextDuplication 全部保留——模型端防禦仍有價值，本次根因在渲染層。
+  - **驗證方式**：沙箱無 JDK/Android SDK（與先前 session 相同），單元測試＋lint＋雙 APK 簽署由 GitHub Actions 執行。
 - **Session 33（AI 回覆整段重複兩次修復：全文層重複摺疊＋chat 溫度分流，已完成）**：實測截圖確認 AI 回覆整段文字在同一則訊息內重複兩次；區塊層 mergeBlocksWithOverlapDedup 無效，因為重複發生在單一 text 區塊內部——Mistral 上 reasoning 模型（尤其 GLM 5.3 家族）的已知模型端 bug：reasoning 洩漏進 text 通道後退化成重複迴圈，官方 reasoning_effort="none" 對 GLM 系也壓不掉（content 永遠是 chunk 清單）。參考：github.com/mawoh/pi-mistral-native/issues/27、zai-org/feedback#819、docs.mistral.ai/studio/conversations/reasoning。用戶端唯一解法是最後一道的防禦性全文去重。
   - **修復（僅改 AiRepositoryImpl.kt 與 AiContentExtractTest.kt）**：extractAiContent() 的輸出端（sanitizeAiText 之後、回傳前）新增全文層 collapseFullTextDuplication()——(1) 整段兩半完全逐字相同（段落或中點切分，容許中間一個分隔字元）只保留一份；(2) 段落序列去重，與先前完整段落完全相同者丟棄；處理後空白回 null。
   - **請勿誤改**：全文層去重的「完全逐字相同」比對＋「重複段落長度 >= 20 字元」門檻是刻意保守設計，不可改成相似度模糊比對、不可刪短句（避免誤刪「好」「1」等短行與列點開頭語等模型刻意的重複表述）。Session 31 三形態解析、Session 32 區塊層去重、sanitizeAiText 只碰「[」開頭陣列的行為全部保留未動。
