@@ -19,7 +19,14 @@
 
 ## Session 紀錄
 
-- **Session 23（修復四個 UI bug：期間選取重疊、時間選擇器偏移、AI Markdown、總覽切換抽動，已完成）**：只動 UI 顯示層，不動資料層、AddTransactionSheet 捲動結構與 CategoryGrid。
+- **Session 24（期間選取器寬度重疊修復＋MarkdownText 擴充：有序清單／分隔線／標題分級，已完成）**：只動 TransactionsScreen 的期間選取對話框與 MarkdownText，不動資料層與 AddTransactionSheet。
+  - **Bug 1（期間選取器雙欄標頭重疊）**：根因＝M3 AlertDialog 預設對話框寬度上限，DateRangePicker 內部「開始日／結束日」雙欄標頭在窄螢幕互相擠壓。修復＝該 AlertDialog 加 `properties = DialogProperties(usePlatformDefaultWidth = false)`＋`modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)`，DateRangePicker 維持 `fillMaxWidth().heightIn(max = 480.dp)`，並設 `title = {}` 移除與 AlertDialog「選取日期」重複的內建標頭。全專案僅明細頁有 DateRangePicker（記帳頁是單日 DatePickerDialog，無此問題），setDateRange 流程未動。
+  - **Bug 2（MarkdownText 擴充，請勿誤改）**：parseMarkdown 新增支援——(1) 分隔線：整行僅 3 個以上連續「-」「*」「—」（允許前後空白）→ MdLine.divider，渲染 HorizontalDivider 上下 8dp padding，不印字元；(2) 有序清單：行首「數字. 」→ MdLine.orderedNumber 保留編號（渲染粗體「1. 」前綴），內容走既有行內解析，**不疊圓點**；(3) 標題收尾 hash：「### 標題 ##」行尾以空白分隔的裝飾 hash 剝除（stripTrailingHashes，保守：無空白分隔不動）；(4) 標題分級：headingLevel 1–3 對應 fontSize 20/18/16 sp（皆粗體）。**擴充後仍維持零正則、零依賴、保守字串掃描、不拋例外——不得改為正則或第三方套件**。渲染結構由單一 Text 改為 Column（每行一個 Text＋分隔線插 HorizontalDivider），呼叫端簽名不變。
+  - **新測試**：MarkdownParserTest 補 4 案例（分隔線／有序清單保留編號／標題收尾 hash＋分級／未支援符號原樣），既有 4 案例未破壞，共 8 案例。
+  - **AI 顯示點複查**：ChatBubble（僅 AI 訊息）、AiScreen（分析結果卡＋歷史回看）、AiResultDialog（TextResult＋Insight 摘要／Top3／建議）全數走 MarkdownText，無遺漏；使用者輸入不渲染。
+  - **驗證方式**：沙箱無 JDK/Android SDK，括號平衡以 Python 檢查；lint＋單元測試＋雙 APK 由 GitHub Actions 執行。
+
+（修復四個 UI bug：期間選取重疊、時間選擇器偏移、AI Markdown、總覽切換抽動，已完成）**：只動 UI 顯示層，不動資料層、AddTransactionSheet 捲動結構與 CategoryGrid。
   - **Bug 1（明細頁期間選取）**：根因＝DateRangePicker 放在 AlertDialog text{} 內只給 fillMaxWidth()，內部月份 Lazy 列表在無限高度約束下版面擠壓重疊。修復＝`Modifier.fillMaxWidth().heightIn(max = 480.dp)`（TransactionsScreen.kt）。記帳頁 DateFieldButton 檢查過：用的是 DatePickerDialog（Material3 為 DatePicker 設計的容器，內部已處理高度），無同樣問題，未改。
   - **鐵律延伸（請勿誤改）**：任何 Lazy 類 picker（DateRangePicker／DatePicker 等）放進對話框時都必須給有限高度（如 heightIn(max = 480.dp)），否則在無限高度約束下會重疊或閃退——與「單一捲動容器」鐵律同源，編譯與 lint 偵測不到。
   - **Bug 2（時間選擇時鐘偏左上）**：根因＝TimeFieldButton 的 TimePicker 被包在 DatePickerDialog（為 DatePicker 設計的容器）內，版面約束導致時鐘偏左上。修復＝改用 AlertDialog＋`Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center)` 置中（AddTransactionSheet.kt）；確認／取消與 setTime 流程不變，捲動結構與 CategoryGrid 未動。設定頁 NotificationSection 的 TimePicker 本就是 AlertDialog 容器，未改。

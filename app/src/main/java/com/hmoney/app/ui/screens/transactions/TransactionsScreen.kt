@@ -50,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.hmoney.app.R
@@ -499,10 +500,15 @@ fun TransactionsScreen(
         AlertDialog(
             onDismissRequest = { showDateRange = false },
             title = { Text(stringResource(R.string.transactions_filter_date)) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            properties = DialogProperties(usePlatformDefaultWidth = false),
             text = {
                 DateRangePicker(
                     state = pickerState,
                     showModeToggle = false,
+                    title = {},
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 480.dp),
