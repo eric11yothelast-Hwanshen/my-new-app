@@ -19,6 +19,12 @@
 
 ## Session 紀錄
 
+- **Session 12（總覽頁「本月收支」卡片視覺強化，已完成）**：對應 SPEC 3.2 總覽頁，僅改 OverviewScreen.kt，不動 AddTransactionSheet 與其他頁面。
+  - **改了什麼**：本月收支玻璃卡內的支出／收入兩欄改為兩張帶邊框的小卡（`MonthAmountBlock`，同檔 private composable）：支出用紅色系（`colorScheme.error`）＋外向箭頭圖示（Icons.AutoMirrored.Outlined.CallMade，支出行方向）；收入用綠色系（`colorScheme.primary`，品牌青綠）＋內向箭頭圖示（Icons.AutoMirrored.Outlined.CallReceived，收入入方方向）。
+  - **狀態區分**：金額 > 0 時邊框與圖示用強調色、金額 FontWeight.Bold；金額 = 0 時整張小卡降飽和——邊框改 `outlineVariant`、圖示與金額改 `onSurfaceVariant`、字重恢復 Normal，深淺色模式皆可一眼分辨本月有沒有記帳。
+  - **用色決策**：全部從 MaterialTheme.colorScheme 取用（error／primary／onSurfaceVariant／outlineVariant），不 hardcode 色碼；未新增 Theme 語意色——error 在 Material 語意即「負向／支出紅」，primary 在品牌配色為青綠（收入綠），深淺兩套配色與動態色彩（API 31+ Material You）皆自動適配對比。
+  - **驗證方式**：沙箱無 JDK/Android SDK（與先前 session 相同），lint（Error 擋建置）＋單元測試＋雙 APK 簽署由 GitHub Actions 執行，Release 頁可下載。
+
 - **Session 11（實機閃退修復：捲動容器巢狀）**：以使用者提供的實機 logcat 為準的根因修復（`IllegalStateException: Vertically scrollable component was measured with an infinity maximum height constraints`），對應 SPEC 3.1 快速記帳，不更動其他功能範圍。
   - **根因**：Session 9 為修數字鍵盤截斷，把 AddTransactionSheet 的內容改為 `verticalScroll`；但分類區仍是 `LazyVerticalGrid`（縱向捲動元件），在無限高度約束的父層內第一次測量即拋例外，開啟「快速記帳」頁直接閃退。此問題編譯與 lint 皆測不到。
   - **修復（單一捲動結構，二擇一方案中的前者）**：外層 Column 不捲動；中段 `Column(weight(1f)) + verticalScroll` 放分類、日期、備註等可捲動內容；數字鍵盤與「完成 ✓」鈕固定底部，不隨內容捲動，任何螢幕高度都完整顯示鍵盤（0、小數點、刪除鍵）。分類格由 `LazyVerticalGrid` 改為純 Column／Row 的固定 4 欄 `CategoryGrid`（分類數量有限，不影響效能），全 Sheet 不再有任何巢狀捲動。

@@ -1,5 +1,6 @@
 package com.hmoney.app.ui.screens.overview
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,9 +10,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.CallMade
+import androidx.compose.material.icons.automirrored.outlined.CallReceived
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ReceiptLong
@@ -28,7 +32,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.hmoney.app.R
@@ -116,32 +123,22 @@ fun OverviewScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Column {
-                            Text(
-                                text = stringResource(R.string.overview_month_expense),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                text = Formats.moneyWithCurrency(state.monthExpenseCents),
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        }
-                        Column(horizontalAlignment = Alignment.End) {
-                            Text(
-                                text = stringResource(R.string.overview_month_income),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                text = Formats.moneyWithCurrency(state.monthIncomeCents),
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.tertiary,
-                            )
-                        }
+                        MonthAmountBlock(
+                            label = stringResource(R.string.overview_month_expense),
+                            cents = state.monthExpenseCents,
+                            icon = Icons.AutoMirrored.Outlined.CallMade,
+                            accentColor = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.weight(1f),
+                        )
+                        MonthAmountBlock(
+                            label = stringResource(R.string.overview_month_income),
+                            cents = state.monthIncomeCents,
+                            icon = Icons.AutoMirrored.Outlined.CallReceived,
+                            accentColor = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
             }
@@ -261,5 +258,58 @@ fun OverviewScreen(
             onGoSettings = onGoSettings,
             onDismiss = aiViewModel::reset,
         )
+    }
+}
+
+/**
+ * 本月收支小卡：有資料（> 0）用強調色邊框＋圖示＋粗體金額；
+ * 0 元整體降飽和為灰色調，一眼分辨本月有沒有記帳。
+ */
+@Composable
+private fun MonthAmountBlock(
+    label: String,
+    cents: Long,
+    icon: ImageVector,
+    accentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    val hasData = cents > 0
+    val contentColor = if (hasData) {
+        accentColor
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    val borderColor = if (hasData) {
+        accentColor
+    } else {
+        MaterialTheme.colorScheme.outlineVariant
+    }
+    val shape = RoundedCornerShape(16.dp)
+    Row(
+        modifier = modifier
+            .border(width = 1.dp, color = borderColor, shape = shape)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = contentColor,
+            modifier = Modifier.size(18.dp),
+        )
+        Column {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = Formats.moneyWithCurrency(cents),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = if (hasData) FontWeight.Bold else FontWeight.Normal,
+                color = contentColor,
+            )
+        }
     }
 }
