@@ -61,6 +61,7 @@ import kotlinx.coroutines.launch
 fun SettingsScreen(
     onOpenWizard: () -> Unit,
     onOpenAi: () -> Unit,
+    onOpenCategories: () -> Unit = {},
     modifier: Modifier = Modifier,
     settingsViewModel: SettingsViewModel = hiltViewModel(),
     budgetViewModel: BudgetViewModel = hiltViewModel(),
@@ -143,6 +144,15 @@ fun SettingsScreen(
                 checked = appearance.dynamicColor,
                 onCheckedChange = settingsViewModel::setDynamicColor,
             )
+        }
+
+        // ===== 分類管理 =====
+        Text(
+            text = stringResource(R.string.settings_categories),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        TextButton(onClick = onOpenCategories) {
+            Text(stringResource(R.string.settings_categories_open))
         }
 
         // ===== 通知 =====

@@ -21,4 +21,10 @@ interface CategoryRepository {
 
     /** 隱藏分類（保留歷史資料關聯） */
     suspend fun hideCategory(id: Long)
+
+    /**
+     * 刪除分類：僅限無任何交易／預算／週期交易關聯且非 fallback 保護分類；
+     * 回傳是否真的刪除（有關聯或受保護時回傳 false，呼叫端顯示只能隱藏）。
+     */
+    suspend fun deleteCategoryIfUnused(id: Long): Boolean
 }

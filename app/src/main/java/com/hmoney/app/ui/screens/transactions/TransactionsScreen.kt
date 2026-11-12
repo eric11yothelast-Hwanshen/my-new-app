@@ -251,7 +251,7 @@ fun TransactionsScreen(
                         },
                     )
                 }
-                items(state.categories.values.sortedBy { it.id }, key = { it.id }) { category ->
+                items(state.filterCategories, key = { it.id }) { category ->
                     FilterChip(
                         selected = state.filters.categoryId == category.id,
                         onClick = { viewModel.setCategory(category.id) },

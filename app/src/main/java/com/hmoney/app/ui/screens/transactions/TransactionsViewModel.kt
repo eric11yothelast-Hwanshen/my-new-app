@@ -57,6 +57,7 @@ class TransactionsViewModel @Inject constructor(
         val groups: List<DayGroup> = emptyList(),
         val accounts: List<Account> = emptyList(),
         val categories: Map<Long, Category> = emptyMap(),
+        val filterCategories: List<Category> = emptyList(),
     )
 
     private val filters = MutableStateFlow(Filters())
@@ -80,12 +81,17 @@ class TransactionsViewModel @Inject constructor(
             categoryRepository.observeAll(CategoryType.EXPENSE),
             categoryRepository.observeAll(CategoryType.INCOME),
         ) { expense, income -> expense + income },
+        combine(
+            categoryRepository.observeActive(CategoryType.EXPENSE),
+            categoryRepository.observeActive(CategoryType.INCOME),
+        ) { expense, income -> expense + income },
         filteredTransactions,
-    ) { f, accounts, categories, transactions ->
+    ) { f, accounts, categories, activeCategories, transactions ->
         UiState(
             filters = f,
             accounts = accounts,
             categories = categories.associateBy { it.id },
+            filterCategories = activeCategories.sortedBy { it.sortOrder },
             groups = groupByDay(transactions),
         )
     }.stateIn(

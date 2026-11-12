@@ -19,6 +19,13 @@
 
 ## Session 紀錄
 
+- **Session 22（分類管理 UI：新增／隱藏／排序自訂分類，已完成）**：新增分類管理頁（ui/screens/categories/CategoryManagementScreen.kt＋CategoryManagementViewModel.kt，支出／收入兩個 tab，列表＝圖示＋名稱＋色點＋隱藏標記＋上移／下移）；設定頁新增「分類管理」區塊（TextButton「管理分類」→ 新 route category_management，仿 wizard 頁 TopAppBar＋返回）。新增／編輯對話框：名稱（必填、同型別內防重複，新增與改名都檢查）＋圖示選擇（沿用 IconMapper.accountIconKeys＋LazyRow，與帳戶頁同做法）＋色票（沿用 AccountPalette.colorArgbs 的做法）；新增分類 sortOrder＝當前最大＋1（排最後）；排序＝與相鄰分類互換 sortOrder（兩次 updateCategory）。
+  - **刪除／隱藏規則（請勿誤改）**：規則集中在 domain/logic/CategoryRules.kt（純邏輯，含 CategoryRulesTest 4 案例單元測試）——「其他」（支出）與「其他收入」（收入）為 fallback 保護分類，**不可隱藏、不可刪除**（保護以種子名稱比對：若使用者對保護分類改名，保護即失效，與記帳分類以名稱對應的行為一致，勿改為以 id 判斷——種子 id 不穩定）；有交易／預算／週期交易關聯的分類一律只能隱藏（isHidden），不得實刪。刪除走 CategoryRepository.deleteCategoryIfUnused（先查三表 COUNT：transactions／budgets／recurring_transactions，無關聯才 deleteById；CategoryDao 新增三個 count 查詢與 deleteById），回傳 false 時 UI 顯示「此分類尚有交易／預算／週期交易關聯，只能隱藏」。**沙箱與 CI 皆無法跑 Room DAO 測試（專案僅 JUnit、無 Robolectric），故關聯判斷邏輯抽成純邏輯 CategoryRules 做單元測試，DAO 查詢本身為單行 COUNT SQL**。
+  - **隱藏的反映（請勿誤改）**：AddTransactionViewModel 的分類清單由 observeAll 改為 **observeActive**（記帳 CategoryGrid 不再顯示隱藏分類；AI 建議配對同源，也不會選到隱藏分類。注意：編輯一筆分類已被隱藏的舊交易時，格子裡不會顯示該分類為選中——屬已知行為）；TransactionsViewModel 的 UiState 新增 `filterCategories`（observeActive，明細頁分類篩選 chips 用），**既有 `categories` map 維持 observeAll**（交易列與 AI 篩選名稱對應需要含隱藏分類，否則既有明細會失去分類名——勿合併）；StatsViewModel／OverviewViewModel 維持 observeAll（既有交易的統計與顯示需含隱藏分類）。AddTransactionSheet 捲動結構與 CategoryGrid 本身未動。
+  - **DB schema 未動**：僅新增 DAO 查詢；isHidden／sortOrder 為既有欄位。
+  - **新字串**：settings_categories、settings_categories_open、categories_title／add／edit／name／name_required／duplicate／hidden／hide／restore／move_up／move_down／delete_confirm／delete_blocked／saved／deleted。
+  - **驗證方式**：沙箱無 JDK/Android SDK，括號平衡與 XML 合法性以 Python 檢查；lint＋單元測試＋雙 APK 由 GitHub Actions 執行。
+
 - **Session 21（淺色模式與動態色彩全面檢查＋最小修正，已完成）**：沙箱無法跑實機，以程式碼層級逐頁審查（深色／淺色／動態色彩三組合），只修有對比或可讀問題處；動態色彩（API 31+）經 Theme.kt dynamicDark/LightColorScheme 正確套用，語意色（error／primary／tertiary）皆從 colorScheme 取用，動態模式下自動跟隨。
   - **修正 1：Glass.kt 玻璃卡描邊**（影響所有頁面卡片，含收支小卡、預算卡、帳戶卡、AI 引導卡）——原描邊預設為寫死 `Color.White.copy(alpha = 0.25f)`，淺色模式下幾乎不可見。改為未指定時依深淺色解析：深色＝`onSurface.copy(alpha = 0.25f)`（視覺同原白色描邊、動態色彩下自動跟隨），淺色＝`colorScheme.outlineVariant`（M3 淺色卡片描邊標準色）。`outlineColor` 參數型別改為可空 `Color?`，HmoneyAppRoot 傳入明確值者不受影響。
   - **修正 2：帳戶色票未選取邊框**（AccountsScreen 對話框）——原寫死 `Color.White.copy(alpha = 0.5f)`，淺色對話框底上不可見，色票會看不出可點。改為 `colorScheme.outline`。

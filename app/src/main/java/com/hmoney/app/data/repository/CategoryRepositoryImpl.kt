@@ -3,6 +3,7 @@ package com.hmoney.app.data.repository
 import com.hmoney.app.data.db.dao.CategoryDao
 import com.hmoney.app.data.mapper.toDomain
 import com.hmoney.app.data.mapper.toEntity
+import com.hmoney.app.domain.logic.CategoryRules
 import com.hmoney.app.domain.model.Category
 import com.hmoney.app.domain.model.CategoryType
 import com.hmoney.app.domain.repository.CategoryRepository
@@ -39,5 +40,15 @@ class CategoryRepositoryImpl @Inject constructor(
     override suspend fun hideCategory(id: Long) {
         val entity = categoryDao.getById(id) ?: return
         categoryDao.update(entity.copy(isHidden = true))
+    }
+
+    override suspend fun deleteCategoryIfUnused(id: Long): Boolean {
+        val entity = categoryDao.getById(id) ?: return false
+        val inUse = categoryDao.countTransactionsUsing(id) > 0 ||
+            categoryDao.countBudgetsUsing(id) > 0 ||
+            categoryDao.countRecurringUsing(id) > 0
+        if (!CategoryRules.canDelete(entity.name, inUse)) return false
+        categoryDao.deleteById(id)
+        return true
     }
 }

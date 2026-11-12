@@ -31,6 +31,7 @@ import com.hmoney.app.ui.navigation.TopLevelDestination
 import com.hmoney.app.ui.screens.ai.AiScreen
 import com.hmoney.app.ui.screens.StatsScreen
 import com.hmoney.app.ui.screens.accounts.AccountsScreen
+import com.hmoney.app.ui.screens.categories.CategoryManagementScreen
 import com.hmoney.app.ui.screens.overview.OverviewScreen
 import com.hmoney.app.ui.screens.settings.SettingsScreen
 import com.hmoney.app.ui.screens.transactions.TransactionsScreen
@@ -38,6 +39,7 @@ import com.hmoney.app.ui.screens.wizard.BatteryWizardScreen
 import dev.chrisbanes.haze.rememberHazeState
 
 private const val WIZARD_ROUTE = "battery_wizard"
+private const val CATEGORY_MANAGEMENT_ROUTE = "category_management"
 
 /**
   * App 主框架：玻璃態底部導覽列（5 頁）＋ Navigation Compose 淡入淡出轉場動畫。
@@ -142,7 +144,11 @@ fun HmoneyAppRoot(
                 SettingsScreen(
                     onOpenWizard = { navController.navigate(WIZARD_ROUTE) },
                     onOpenAi = { navController.navigate(AI_ASSISTANT_ROUTE) },
+                    onOpenCategories = { navController.navigate(CATEGORY_MANAGEMENT_ROUTE) },
                 )
+            }
+            composable(CATEGORY_MANAGEMENT_ROUTE) {
+                CategoryManagementScreen(onBack = { navController.popBackStack() })
             }
             composable(WIZARD_ROUTE) {
                 BatteryWizardScreen(onBack = { navController.popBackStack() })

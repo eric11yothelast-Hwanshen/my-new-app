@@ -83,8 +83,8 @@ class AddTransactionViewModel @Inject constructor(
         form,
         aiState,
         accountRepository.observeVisibleWithBalance(),
-        categoryRepository.observeAll(CategoryType.EXPENSE),
-        categoryRepository.observeAll(CategoryType.INCOME),
+        categoryRepository.observeActive(CategoryType.EXPENSE),
+        categoryRepository.observeActive(CategoryType.INCOME),
     ) { f, ai, accounts, expenseCategories, incomeCategories ->
         UiState(
             form = f,
