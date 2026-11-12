@@ -32,7 +32,7 @@ class OverviewViewModel @Inject constructor(
     categoryRepository: CategoryRepository,
     transactionRepository: TransactionRepository,
     budgetRepository: BudgetRepository,
-    settingsRepository: SettingsRepository,
+    private val settingsRepository: SettingsRepository,
     aiRepository: AiRepository,
 ) : ViewModel() {
 
