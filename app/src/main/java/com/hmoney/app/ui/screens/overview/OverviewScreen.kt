@@ -24,6 +24,8 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -56,6 +58,7 @@ import com.hmoney.app.ui.screens.add.AddTransactionSheet
 import com.hmoney.app.ui.screens.ai.AiAssistantSheet
 import com.hmoney.app.ui.screens.ai.FeatureAiViewModel
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.launch
 
 /**
  * 總覽頁：本月收支玻璃卡、總餘額（數字滾動）、帳戶餘額列、近期明細與快速記帳 FAB。
@@ -72,6 +75,7 @@ fun OverviewScreen(
     var showAddSheet by remember { mutableStateOf(false) }
     var showAiSheet by remember { mutableStateOf(false) }
     val glassState = rememberHazeState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
@@ -200,7 +204,6 @@ fun OverviewScreen(
                                 R.string.overview_budget_spent,
                                 Formats.moneyWithCurrency(state.monthExpenseCents),
                                 Formats.moneyWithCurrency(state.budgetCents),
-                                Formats.moneyWithCurrency(remainingCents),
                             ),
                             style = MaterialTheme.typography.titleSmall,
                             color = if (ratio > 0.9f) {
@@ -210,15 +213,39 @@ fun OverviewScreen(
                             },
                             modifier = Modifier.padding(top = 8.dp),
                         )
-                        Text(
-                            text = stringResource(
-                                R.string.overview_budget_daily,
-                                Formats.moneyWithCurrency(dailyAvailableCents),
-                            ),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp),
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.overview_budget_remaining_label),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            AnimatedAmountText(
+                                cents = remainingCents,
+                                style = MaterialTheme.typography.titleSmall,
+                                color = statusColor,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.overview_budget_daily_label),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            AnimatedAmountText(
+                                cents = dailyAvailableCents,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }
@@ -315,10 +342,21 @@ fun OverviewScreen(
                 text = { Text(stringResource(R.string.overview_add)) },
             )
         }
+
+        // 儲存成功回饋（Snackbar）
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 88.dp),
+        )
     }
 
     if (showAddSheet) {
-        AddTransactionSheet(onDismiss = { showAddSheet = false })
+        AddTransactionSheet(
+            onDismiss = { showAddSheet = false },
+            snackbarHostState = snackbarHostState,
+        )
     }
 
     if (showAiSheet) {
@@ -384,11 +422,11 @@ private fun MonthAmountBlock(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Text(
-                text = Formats.moneyWithCurrency(cents),
+            AnimatedAmountText(
+                cents = cents,
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = if (hasData) FontWeight.Bold else FontWeight.Normal,
                 color = contentColor,
+                fontWeight = if (hasData) FontWeight.Bold else FontWeight.Normal,
             )
         }
     }

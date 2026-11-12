@@ -1,6 +1,7 @@
 package com.hmoney.app.ui.screens.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +23,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -30,6 +33,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +51,7 @@ import com.hmoney.app.ui.components.FluidSwitch
 import com.hmoney.app.ui.components.GlassCard
 import com.hmoney.app.ui.components.glassSource
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.launch
 
 /**
  * 設定頁：外觀（深色模式／動態色彩）、預算（月總＋分類）、
@@ -64,9 +69,13 @@ fun SettingsScreen(
 ) {
     val appearance by settingsViewModel.appearance.collectAsState()
     val glassState = rememberHazeState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val budgetSavedMessage = stringResource(R.string.budget_saved)
 
+    Box(modifier = modifier.fillMaxSize()) {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
             .glassSource(glassState)
             .verticalScroll(rememberScrollState())
@@ -342,6 +351,13 @@ private fun BudgetSection(viewModel: BudgetViewModel) {
         }
     }
 
+    // 預算儲存回饋（Snackbar）
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter),
+    )
+    }
+
     if (editingTotal) {
         BudgetAmountDialog(
             title = stringResource(R.string.budget_total),
@@ -349,6 +365,7 @@ private fun BudgetSection(viewModel: BudgetViewModel) {
             onSave = { cents ->
                 viewModel.setTotalBudget(cents)
                 editingTotal = false
+                scope.launch { snackbarHostState.showSnackbar(budgetSavedMessage) }
             },
         )
     }
@@ -359,10 +376,12 @@ private fun BudgetSection(viewModel: BudgetViewModel) {
             onSave = { cents ->
                 viewModel.setCategoryBudget(categoryId, cents)
                 editingCategoryId = null
+                scope.launch { snackbarHostState.showSnackbar(budgetSavedMessage) }
             },
         )
     }
 }
+
 
 /** 預算金額對話框：留空或 0 表示移除 */
 @Composable

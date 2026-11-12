@@ -16,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -49,6 +50,7 @@ fun AnimatedAmountText(
     currency: String = "TWD",
     style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.headlineMedium,
     color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
+    fontWeight: FontWeight? = null,
 ) {
     val animated = remember { Animatable(cents.toFloat()) }
     LaunchedEffect(cents) {
@@ -61,6 +63,7 @@ fun AnimatedAmountText(
         text = Formats.moneyWithCurrency(animated.value.toLong(), currency),
         modifier = modifier,
         style = style,
+        fontWeight = fontWeight,
         color = color,
     )
 }

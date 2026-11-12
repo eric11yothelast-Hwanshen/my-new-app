@@ -1,6 +1,5 @@
 package com.hmoney.app.ui.screens.transactions
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +26,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDateRangePickerState
@@ -36,10 +37,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -50,6 +51,7 @@ import com.hmoney.app.ui.components.AiFloatingButton
 import com.hmoney.app.ui.components.AiResultDialog
 import com.hmoney.app.ui.components.EmptyState
 import com.hmoney.app.ui.components.TransactionRow
+import kotlinx.coroutines.launch
 import com.hmoney.app.ui.components.glassSource
 import com.hmoney.app.ui.screens.add.AddTransactionSheet
 import com.hmoney.app.ui.screens.ai.AiAssistantSheet
@@ -73,13 +75,16 @@ fun TransactionsScreen(
     val state by viewModel.uiState.collectAsState()
     val aiState by aiViewModel.uiState.collectAsState()
     val glassState = rememberHazeState()
-    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     var editingId by remember { mutableStateOf<Long?>(null) }
     var deletingId by remember { mutableStateOf<Long?>(null) }
     var showDateRange by remember { mutableStateOf(false) }
     var showAiSheet by remember { mutableStateOf(false) }
     var aiQuery by remember { mutableStateOf("") }
+    val aiFilterAppliedMessage = stringResource(R.string.ai_filter_applied)
+    val deletedMessage = stringResource(R.string.transactions_deleted)
 
     // AI 篩選結果：轉成資料庫篩選條件並套用到清單
     LaunchedEffect(aiState) {
@@ -99,11 +104,7 @@ fun TransactionsScreen(
                     s.suggestion.startDateEpochMillis,
                     s.suggestion.endDateEpochMillis,
                 )
-                Toast.makeText(
-                    context,
-                    R.string.ai_filter_applied,
-                    Toast.LENGTH_SHORT,
-                ).show()
+                scope.launch { snackbarHostState.showSnackbar(aiFilterAppliedMessage) }
                 aiViewModel.reset()
             }
 
@@ -387,11 +388,23 @@ fun TransactionsScreen(
                 .align(Alignment.BottomEnd)
                 .padding(20.dp),
         )
+
+        // 刪除／AI 篩選回饋（Snackbar）
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 88.dp),
+        )
     }
 
     // 編輯
     editingId?.let { id ->
-        AddTransactionSheet(onDismiss = { editingId = null }, editingId = id)
+        AddTransactionSheet(
+            onDismiss = { editingId = null },
+            editingId = id,
+            snackbarHostState = snackbarHostState,
+        )
     }
 
     if (showAiSheet) {
@@ -426,6 +439,7 @@ fun TransactionsScreen(
                     onClick = {
                         viewModel.deleteTransaction(id)
                         deletingId = null
+                        scope.launch { snackbarHostState.showSnackbar(deletedMessage) }
                     },
                 ) { Text(stringResource(R.string.common_delete)) }
             },

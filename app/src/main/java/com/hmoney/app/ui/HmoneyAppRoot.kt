@@ -1,11 +1,8 @@
 package com.hmoney.app.ui
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
@@ -43,7 +40,7 @@ import dev.chrisbanes.haze.rememberHazeState
 private const val WIZARD_ROUTE = "battery_wizard"
 
 /**
- * App 主框架：玻璃態底部導覽列（5 頁）＋ Navigation Compose spring 轉場動畫。
+  * App 主框架：玻璃態底部導覽列（5 頁）＋ Navigation Compose 淡入淡出轉場動畫。
  * 附屬頁面（如續航設定精靈）不顯示底部導覽列。
  */
 @Composable
@@ -115,27 +112,11 @@ fun HmoneyAppRoot(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .glassSource(glassState),
-            // spring 物理轉場動畫
-            enterTransition = {
-                slideInVertically(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                        stiffness = Spring.StiffnessMediumLow,
-                    ),
-                    initialOffsetY = { it / 12 },
-                ) + fadeIn()
-            },
-            exitTransition = { fadeOut() },
-            popEnterTransition = { fadeIn() },
-            popExitTransition = {
-                slideOutVertically(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                        stiffness = Spring.StiffnessMediumLow,
-                    ),
-                    targetOffsetY = { it / 12 },
-                ) + fadeOut()
-            },
+            // 分頁切換淡入淡出轉場（純 fade，不閃白、不生硬）
+            enterTransition = { fadeIn(animationSpec = tween(durationMillis = 220)) },
+            exitTransition = { fadeOut(animationSpec = tween(durationMillis = 180)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(durationMillis = 220)) },
+            popExitTransition = { fadeOut(animationSpec = tween(durationMillis = 180)) },
         ) {
             // AI 錯誤回饋的「前往設定」：切換到設定分頁（AI 連線設定的唯一入口）
             val goSettings = {

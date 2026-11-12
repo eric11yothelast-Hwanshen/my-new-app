@@ -90,6 +90,8 @@ fun AccountsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val deleteBlockedMessage = stringResource(R.string.accounts_delete_fail)
+    val savedMessage = stringResource(R.string.accounts_saved)
+    val deletedMessage = stringResource(R.string.accounts_deleted)
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -247,6 +249,7 @@ fun AccountsScreen(
             onConfirm = { name, iconKey, color, initialCents ->
                 viewModel.addAccount(name, iconKey, color, initialCents)
                 showAddDialog = false
+                scope.launch { snackbarHostState.showSnackbar(savedMessage) }
             },
         )
     }
@@ -260,6 +263,7 @@ fun AccountsScreen(
             onConfirm = { name, iconKey, color, _ ->
                 viewModel.updateAccount(account, name, iconKey, color)
                 editingAccount = null
+                scope.launch { snackbarHostState.showSnackbar(savedMessage) }
             },
             onHide = {
                 hideTarget = account
@@ -269,7 +273,9 @@ fun AccountsScreen(
                 scope.launch {
                     // 僅無交易的帳戶可刪；有交易則提示僅能隱藏
                     val deleted = viewModel.deleteAccount(account.id)
-                    if (!deleted) {
+                    if (deleted) {
+                        snackbarHostState.showSnackbar(deletedMessage)
+                    } else {
                         snackbarHostState.showSnackbar(deleteBlockedMessage)
                     }
                 }

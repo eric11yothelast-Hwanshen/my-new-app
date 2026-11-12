@@ -19,6 +19,15 @@
 
 ## Session 紀錄
 
+- **Session 15（全 App 過場動畫與操作回饋補強，已完成）**：只碰 UI 回饋層，AddTransactionSheet 捲動結構與資料層完全未動。
+  - **分頁切換轠場**：NavHost 進齣轠場由 spring 滑動＋fade 改為純淡入淡出（fadeIn 220ms／fadeOut 180ms tween，前進與返回皆同）——五分頁切換一致、不閃白；containerColor 為 background，fade 過程不露白。附屬頁面（精靈、AI）同套轠場。
+  - **Toast 全面改 Snackbar**：(1) 記帳儲存成功——AddTransactionSheet 新增可選參數 snackbarHostState（父層傳入），onSaved 經父層 SnackbarHost 顯示「已儲存」後才關閉 Sheet；Overview／Transactions 兩個入口各加 SnackbarHost（BottomCenter、bottom 88dp 避開 FAB）；Sheet 內部回饋（驗證失敗、AI 建議）仍用 Sheet 自己的 localSnackbarHostState，兩者分離避免遮蔽。(2) 明細頁 AI 篩選套用——Toast 改 Snackbar（字串組合期解析）。(3) 明細頁刪除成功——新增「已刪除這筆記錄」Snackbar。
+  - **帳戶頁回饋補齊**：新增／編輯儲存成功、刪除成功各加 Snackbar（失敗的「僅能隱藏」提示原本就有），沿用既有 Scaffold snackbarHost。
+  - **設定頁預算儲存回饋**：SettingsScreen 根層包 Box＋SnackbarHost（捲動結構不變，單一 verticalScroll 仍在 Column），月總預算／分類預算儲存後顯示「預算已儲存」。
+  - **數字滾動補齊**：AnimatedAmountText 加可選 fontWeight 參數（沿用既有元件）；總覽頁本月收支兩張小卡金額、預算卡「剩餘」與「日均可用」金額改用 AnimatedAmountText（原本只有總餘額有滾動）。
+  - **AI loading 檢查**：AiResultDialog（四分頁入口）、AiAssistantSheet、AiScreen 皆有 loading 狀態，無缺漏，未改。
+  - **驗證方式**：沙箱無 JDK/Android SDK（與先前 session 相同），lint＋單元測試＋雙 APK 簽署由 GitHub Actions 執行，Release 頁可下載。
+
 - **Session 14（總覽頁「本月預算進度」卡片，已完成）**：對應 SPEC 3.2（總覽）與預算功能串接，僅改 OverviewViewModel.kt、OverviewScreen.kt 與字串資源；設定頁預算設定功能與 BudgetEvaluator 完全未動，無 DB schema 變更。
   - **改了什麼**：本月收支卡下方新增預算卡——LinearProgressIndicator（本月支出 ÷ 月總預算）＋「已花 X / 預算 Y，剩餘 Z」＋「日均可用 W」；未設定預算（總預算為 0）時顯示「尚未設定預算」＋「去設定」按鈕（沿用 OverviewScreen 既有 onGoSettings 導航參數，直接導向設定頁）。
   - **日均可用**：剩餘金額（爆表則以 0 計）÷ 當月剩餘天數；剩餘天數＝lengthOfMonth() − dayOfMonth + 1（今天也算一天可用，避免月末除以零）。日期一律 LocalDate＋ZoneId.systemDefault()，沿用專案既有寫法，無 API 34 限定 API。

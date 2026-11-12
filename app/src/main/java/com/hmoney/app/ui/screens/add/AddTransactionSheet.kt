@@ -1,6 +1,5 @@
 package com.hmoney.app.ui.screens.add
 
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -48,11 +47,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -66,6 +65,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import kotlinx.coroutines.launch
 
 /**
  * 記帳 Bottom Sheet：數字鍵盤為主的輸入流程，記完即存。
@@ -77,12 +77,13 @@ import java.time.ZoneId
 fun AddTransactionSheet(
     onDismiss: () -> Unit,
     editingId: Long? = null,
+    snackbarHostState: SnackbarHostState? = null,
     viewModel: AddTransactionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
     val form = state.form
-    val context = LocalContext.current
-    val snackbarHostState = remember { SnackbarHostState() }
+    val localSnackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     var showDiscardConfirm by remember { mutableStateOf(false) }
     val savedMessage = stringResource(R.string.add_saved)
 
@@ -104,7 +105,7 @@ fun AddTransactionSheet(
     // 驗證失敗提示（Snackbar，取代佔空間的行內錯誤）
     LaunchedEffect(form.errorRes) {
         errorText?.let {
-            snackbarHostState.showSnackbar(it)
+            localSnackbarHostState.showSnackbar(it)
             viewModel.clearError()
         }
     }
@@ -113,17 +114,17 @@ fun AddTransactionSheet(
     LaunchedEffect(state.aiState) {
         when (state.aiState) {
             AddTransactionViewModel.AiState.Done -> {
-                snackbarHostState.showSnackbar(aiAppliedMessage)
+                localSnackbarHostState.showSnackbar(aiAppliedMessage)
                 viewModel.clearAiState()
             }
 
             AddTransactionViewModel.AiState.NeedNote -> {
-                snackbarHostState.showSnackbar(aiNeedNoteMessage)
+                localSnackbarHostState.showSnackbar(aiNeedNoteMessage)
                 viewModel.clearAiState()
             }
 
             is AddTransactionViewModel.AiState.Error -> {
-                aiErrorMessage?.let { snackbarHostState.showSnackbar(it) }
+                aiErrorMessage?.let { localSnackbarHostState.showSnackbar(it) }
                 viewModel.clearAiState()
             }
 
@@ -340,7 +341,9 @@ fun AddTransactionSheet(
                 onClick = {
                     viewModel.save(
                         onSaved = {
-                            Toast.makeText(context, savedMessage, Toast.LENGTH_SHORT).show()
+                            snackbarHostState?.let { host ->
+                                scope.launch { host.showSnackbar(savedMessage) }
+                            }
                             onDismiss()
                         },
                     )
@@ -356,7 +359,7 @@ fun AddTransactionSheet(
                 )
             }
 
-            SnackbarHost(hostState = snackbarHostState)
+            SnackbarHost(hostState = localSnackbarHostState)
         }
     }
 
