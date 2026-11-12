@@ -48,4 +48,9 @@ interface SettingsRepository {
     suspend fun setAiAssistantShowQuickPrompts(enabled: Boolean)
 
     suspend fun setAiCurrentSessionId(sessionId: Long)
+
+    /** 總覽洞察已讀：最後查看的洞察時間（晚於它的新洞察才顯示圓點） */
+    fun observeLastSeenInsight(): Flow<Long>
+
+    suspend fun setLastSeenInsightEpochMillis(epochMillis: Long)
 }

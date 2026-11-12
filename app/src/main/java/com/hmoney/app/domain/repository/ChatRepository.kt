@@ -30,6 +30,9 @@ interface ChatRepository {
 
     suspend fun clearAll()
 
+    /** 一次性清理：刪除零訊息的空 session，回傳刪除數量 */
+    suspend fun deleteEmptySessions(): Int
+
     /** 自動清除：刪除 updatedAt 早於 cutoff 的 session，回傳刪除數量 */
     suspend fun deleteSessionsOlderThan(cutoffEpochMillis: Long): Int
 

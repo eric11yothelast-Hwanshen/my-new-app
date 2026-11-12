@@ -150,4 +150,5 @@ dependencies {
 
     // 單元測試
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

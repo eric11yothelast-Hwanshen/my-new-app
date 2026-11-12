@@ -25,8 +25,11 @@ data class AiChatMessage(
 
 /**
  * 全域 AI 助手 ViewModel：訊息由 ChatRepository 的 DB flow 驅動——各頁的
- * AiAssistantSheet 共用同一份資料，天然跨頁同步；「保留對話」關閉時改為純記憶體，
- * 離開即消失。目前 session id 記於 DataStore，關掉重開仍在同一個對話。
+ * AiAssistantSheet 共用同一份資料，天然跨頁同步；目前 session id 記於 DataStore。
+ *
+ * Session 延遲建立（請勿誤改）：currentSessionId == 0 代表「無進行中對話」，
+ * 不建立任何 DB 記錄；只有送出第一則訊息時才建立 session。DataStore 的
+ * currentSessionId 是唯一事實來源，多個 VM 實例不會各自建立 session。
  */
 @HiltViewModel
 class AiChatViewModel @Inject constructor(
@@ -55,9 +58,13 @@ class AiChatViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            // 一次性清理：刪除延遲建立之前產生的零訊息空 session（之後不會再出現）
+            runCatching { chatRepository.deleteEmptySessions() }
+        }
+        viewModelScope.launch {
             settingsRepository.observeAiAssistant().collect { settings ->
                 _uiState.update { it.copy(settings = settings) }
-                ensureSession(settings)
+                syncActiveSession(settings)
             }
         }
         viewModelScope.launch {
@@ -76,15 +83,15 @@ class AiChatViewModel @Inject constructor(
         job = viewModelScope.launch {
             try {
                 if (settings.keepHistory) {
-                    val sessionId = activeSessionId
-                    if (sessionId > 0L) {
-                        chatRepository.addMessage(
-                            sessionId,
-                            isUser = true,
-                            text = q,
-                            nowEpochMillis = now,
-                        )
-                    }
+                    // 延遲建立：第一則訊息送出時才建立 session
+                    val sessionId = ensureSessionForSend()
+                    chatRepository.addMessage(
+                        sessionId,
+                        isUser = true,
+                        text = q,
+                        nowEpochMillis = now,
+                    )
+                    maybeSetNameFromQuestion(sessionId, q)
                 } else {
                     appendEphemeral(isUser = true, text = q)
                 }
@@ -98,7 +105,6 @@ class AiChatViewModel @Inject constructor(
                                 text = result.text,
                                 nowEpochMillis = System.currentTimeMillis(),
                             )
-                            maybeSetTitle(sessionId, result.text)
                         } else {
                             appendEphemeral(isUser = false, text = result.text)
                         }
@@ -129,12 +135,11 @@ class AiChatViewModel @Inject constructor(
         _uiState.update { it.copy(error = null) }
     }
 
-    /** 建立新對話：保留關閉時僅清空記憶體訊息 */
+    /** 新對話：只把 currentSessionId 歸零（不建立任何 DB 記錄），下次送訊息才建立 */
     fun newSession() {
         viewModelScope.launch {
             if (_uiState.value.settings.keepHistory) {
-                val id = chatRepository.createSession(System.currentTimeMillis())
-                settingsRepository.setAiCurrentSessionId(id)
+                settingsRepository.setAiCurrentSessionId(0L)
             } else {
                 ephemeralCounter = 0L
                 _uiState.update { it.copy(messages = emptyList(), error = null) }
@@ -149,24 +154,22 @@ class AiChatViewModel @Inject constructor(
         }
     }
 
-    /** 刪除單一對話；若刪的是目前對話則自動建立新對話 */
+    /** 刪除單一對話；若刪的是目前對話則回到「無進行中對話」狀態，不自動補建 */
     fun deleteSession(sessionId: Long) {
         viewModelScope.launch {
             chatRepository.deleteSession(sessionId)
             if (sessionId == activeSessionId) {
-                val id = chatRepository.createSession(System.currentTimeMillis())
-                settingsRepository.setAiCurrentSessionId(id)
+                settingsRepository.setAiCurrentSessionId(0L)
             }
         }
     }
 
-    /** 清空所有對話（保留關閉時僅清空記憶體） */
+    /** 清空所有對話（保留關閉時僅清空記憶體）；清完回到「無進行中對話」，不補建 */
     fun clearAll() {
         viewModelScope.launch {
             if (_uiState.value.settings.keepHistory) {
                 chatRepository.clearAll()
-                val id = chatRepository.createSession(System.currentTimeMillis())
-                settingsRepository.setAiCurrentSessionId(id)
+                settingsRepository.setAiCurrentSessionId(0L)
             } else {
                 ephemeralCounter = 0L
                 _uiState.update { it.copy(messages = emptyList(), error = null) }
@@ -185,8 +188,11 @@ class AiChatViewModel @Inject constructor(
         }
     }
 
-    /** 依設定確保目前 session 存在並開始觀察其訊息 */
-    private suspend fun ensureSession(settings: SettingsRepository.AiAssistantSettings) {
+    /**
+     * 以 DataStore 的 currentSessionId 為單一事實來源同步進行中對話：
+     * id 有效且存在 → 觀察其訊息；否則維持 0（延遲建立，絕不在此建立 session）。
+     */
+    private suspend fun syncActiveSession(settings: SettingsRepository.AiAssistantSettings) {
         if (!settings.keepHistory) {
             if (activeSessionId != 0L) {
                 activeSessionId = 0L
@@ -195,17 +201,36 @@ class AiChatViewModel @Inject constructor(
             }
             return
         }
-        val existing = settings.currentSessionId.takeIf { it > 0 }
-            ?.let { chatRepository.getSession(it) }
-        val id = existing?.id ?: chatRepository.createSession(System.currentTimeMillis())
-        if (existing == null) {
-            settingsRepository.setAiCurrentSessionId(id)
+        val stored = settings.currentSessionId
+        val existing = if (stored > 0) chatRepository.getSession(stored) else null
+        if (existing != null) {
+            if (activeSessionId != existing.id) {
+                activeSessionId = existing.id
+                observeMessages(existing.id)
+            }
+            _uiState.update { it.copy(currentSessionId = existing.id) }
+        } else {
+            activeSessionId = 0L
+            messagesJob?.cancel()
+            if (stored != 0L) settingsRepository.setAiCurrentSessionId(0L)
+            _uiState.update { it.copy(currentSessionId = 0L, messages = emptyList()) }
         }
-        if (activeSessionId != id) {
-            activeSessionId = id
-            observeMessages(id)
-        }
+    }
+
+    /**
+     * 送訊息路徑的 session 保證：已有進行中對話則沿用；否則建立一次並寫回
+     * DataStore（唯一事實來源），讓其他頁的 VM 實例跟著同步。
+     */
+    private suspend fun ensureSessionForSend(): Long {
+        activeSessionId.takeIf { it > 0 }
+            ?.let { id -> chatRepository.getSession(id) }
+            ?.let { return it.id }
+        val id = chatRepository.createSession(System.currentTimeMillis())
+        settingsRepository.setAiCurrentSessionId(id)
+        activeSessionId = id
+        observeMessages(id)
         _uiState.update { it.copy(currentSessionId = id) }
+        return id
     }
 
     private fun observeMessages(sessionId: Long) {
@@ -221,11 +246,17 @@ class AiChatViewModel @Inject constructor(
         }
     }
 
-    /** AI 回覆首行截 20 字作為 session 標題（僅在尚未命名時） */
-    private suspend fun maybeSetTitle(sessionId: Long, aiReply: String) {
-        val title = _uiState.value.sessions.firstOrNull { it.id == sessionId }?.title
-        if (title.isNullOrBlank()) {
-            chatRepository.setSessionTitle(sessionId, ChatTitle.from(aiReply))
+    /**
+     * 自動命名：送出第一則 USER 訊息時，以「使用者問題首行截 20 字」命名；
+     * 直接查 DB 判斷 title 是否為空（不讀 UI state，避免競態）。
+     */
+    private suspend fun maybeSetNameFromQuestion(sessionId: Long, question: String) {
+        val session = chatRepository.getSession(sessionId) ?: return
+        if (session.title.isBlank()) {
+            val title = ChatTitle.from(question)
+            if (title.isNotBlank()) {
+                chatRepository.setSessionTitle(sessionId, title)
+            }
         }
     }
 

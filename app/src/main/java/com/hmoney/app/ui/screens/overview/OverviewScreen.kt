@@ -81,16 +81,18 @@ fun OverviewScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val aiState by aiViewModel.uiState.collectAsState()
-    var insightUnread by remember { mutableStateOf(false) }
+    val unreadInsight by viewModel.insightUnread.collectAsState()
     var showAddSheet by remember { mutableStateOf(false) }
     var showAiSheet by remember { mutableStateOf(false) }
     val glassState = rememberHazeState()
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
 
-    // 有新的本週洞察時，✨ 入口顯示小圓點提示；點開後歸零
+    // ✨ 圓點＝有尚未查看的洞察；結果顯示過（含直接關閉）即標記已讀
     LaunchedEffect(aiState) {
-        if (aiState is FeatureAiViewModel.UiState.Insight) insightUnread = true
+        if (aiState is FeatureAiViewModel.UiState.Insight) {
+            viewModel.markInsightSeen()
+        }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -119,19 +121,14 @@ fun OverviewScreen(
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             // 本週 AI 洞察小入口：點擊後以 AiResultDialog 顯示（未設定 AI 時由對話框引導前往設定）
                             Box {
-                                IconButton(
-                                    onClick = {
-                                        insightUnread = false
-                                        aiViewModel.weekInsight()
-                                    },
-                                ) {
+                                IconButton(onClick = aiViewModel::weekInsight) {
                                     Icon(
                                         Icons.Outlined.AutoAwesome,
                                         contentDescription = stringResource(R.string.ai_insight_week),
                                         tint = MaterialTheme.colorScheme.primary,
                                     )
                                 }
-                                if (insightUnread) {
+                                if (unreadInsight) {
                                     Box(
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)

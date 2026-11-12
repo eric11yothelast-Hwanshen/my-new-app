@@ -19,6 +19,17 @@
 
 ## Session 紀錄
 
+- **Session 29（AI 對話 session 生命週期重構：急切建立→延遲建立＋洞察 badge 已讀語意，已完成）**：修正「對話刪不掉／清空後又冒新對話／越積越多」「不自動命名」「✨ 圓點關不掉」三組實機症狀的共同根因。
+  - **延遲建立（核心決策，請勿誤改）**：currentSessionId == 0 定義為「無進行中對話」——UI 顯示空狀態、輸入照常可用；**只有送出第一則訊息（send 路徑的 ensureSessionForSend）才建立 session**；newSession() 只把 DataStore 的 currentSessionId 歸零、絕不建 DB 記錄；deleteSession 刪目前對話→歸零不補建；clearAll 全刪→歸零不補建。DataStore currentSessionId 為單一事實來源（syncActiveSession 以它同步，多 VM 實例不會競態各建）。**勿把 session 建立加回 newSession/deleteSession/clearAll/init**。
+  - **髒資料清理**：VM init 一次性呼叫 chatRepository.deleteEmptySessions()（SQL：刪除零訊息的空 session），之後因延遲建立不會再產生空 session。
+  - **自動命名修正**：改為送出第一則 USER 訊息時以「使用者問題首行截 20 字」命名（ChatTitle.from(question)，比 AI 回覆更有意義）；命名前直接 chatRepository.getSession() 查 DB 判斷 title 是否為空（不讀 UI state，避免競態）；既有空 title 舊對話 UI fallback 顯示「新對話」（AiAssistantSheet ifBlank）。
+  - **交易保護**：clearAll 的兩表刪除包進 SessionDao @Transaction clearAllTables()；deleteSession 走 @Transaction deleteByIdWithMessages()（訊息由 FK CASCADE 一併刪）。
+  - **洞察 badge 已讀語意**：圓點＝「有尚未查看的洞察」——OverviewViewModel.insightUnread = combine(observeLastSeenInsight, aiRepository.observeHistory){ 最新洞察時間 > 最後查看時間 }；AiResultDialog 顯示過（含按關閉，LaunchedEffect 於 UiState.Insight 時）即 markInsightSeen() 寫入 DataStore last_seen_insight；重啟不重現、重新分析產生新洞察才再出現。
+  - **新增測試依賴（測試專用）**：kotlinx-coroutines-test 1.10.2（Kotlin 官方、testImplementation，App 執行期零新依賴）——JVM 測試 ViewModel 需 Dispatchers.setMain。
+  - **測試**：新增 AiChatViewModelTest 7 案例（啟動清理空 session、send 延遲建立＋以問題命名、既有標題不覆寫、newSession 歸零不建、反覆 newSession 零空 session、刪目前對話不補建、clearAll 不補建），以記憶體 fake 的 Chat/Settings/Ai Repository 驗證生命週期；既有 ChatTitleTest 等全數保留。
+  - **零回歸確認**：跨頁同步（DB flow）、鍵盤行為（weight(1f)＋imePadding）、skipPartiallyExpanded = true、四開關即時生效皆未動。
+  - **驗證**：沙箱無 JDK，括號平衡以 Python 檢查；lint、單元測試、雙 APK 由 GitHub Actions 執行。實機驗收：清空後列表為空無殘留、刪目前對話後可直接發問、反覆新對話零空 session、第一則提問自動命名、✨ 圓點看完即消失且重啟不重現。
+
 - **Session 28（任務 B：AI 對話持久化＋跨頁同步＋對話管理＋設定開關；任務 A：總覽／明細／統計三頁重排，已完成）**：DB v3→v4 遷移、AiChatViewModel 改 DB flow 驅動、AiAssistantSheet 全開修復與對話管理 UI、設定頁四開關、三頁空間利用率重排。
   - **B0（首次開啟即全開，請勿誤改）**：AiAssistantSheet 的 ModalBottomSheet 改傳 `sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)`——M3 預設半開會讓輸入列落在裁切範圍外。**勿移除此 sheetState 設定**；既有 weight(1f)＋imePadding＋navigationBarsPadding 鍵盤行為全部保留（Session 26/27 的修復零回歸）。
   - **B1（DB v4 schema）**：新增 `chat_sessions`（id/title/createdAtEpochMillis/updatedAtEpochMillis）與 `chat_messages`（id/sessionId FK CASCADE/role USER|AI/text/createdAtEpochMillis，sessionId 有索引）；HmoneyDatabase version 4＋手寫 MIGRATION_3_4（對照 MIGRATION_2_3 模式）併入 MIGRATIONS；SessionDao／ChatMessageDao；ChatRepository（domain 介面＋ChatRepositoryImpl＋Hilt @Binds）；保護：每次 addMessage 後 trimToLatest(200)——單 session 超過 200 則刪最舊。

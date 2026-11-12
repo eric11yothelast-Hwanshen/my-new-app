@@ -8,14 +8,17 @@ import com.hmoney.app.domain.model.Category
 import com.hmoney.app.domain.model.MoneyTransaction
 import com.hmoney.app.domain.model.TransactionType
 import com.hmoney.app.domain.repository.AccountRepository
+import com.hmoney.app.domain.repository.AiRepository
 import com.hmoney.app.domain.repository.BudgetRepository
 import com.hmoney.app.domain.repository.CategoryRepository
+import com.hmoney.app.domain.repository.SettingsRepository
 import com.hmoney.app.domain.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
@@ -29,6 +32,8 @@ class OverviewViewModel @Inject constructor(
     categoryRepository: CategoryRepository,
     transactionRepository: TransactionRepository,
     budgetRepository: BudgetRepository,
+    settingsRepository: SettingsRepository,
+    aiRepository: AiRepository,
 ) : ViewModel() {
 
     data class UiState(
@@ -77,4 +82,27 @@ class OverviewViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = UiState(),
     )
+
+    /**
+     * ✨ 洞察圓點＝「有尚未查看的洞察」：最新洞察的時間晚於最後查看時間才顯示；
+     * 已讀時間存 DataStore，重啟 App 不會無故重現，重新分析產生新洞察才會再出現。
+     */
+    val insightUnread: StateFlow<Boolean> = combine(
+        settingsRepository.observeLastSeenInsight(),
+        aiRepository.observeHistory(),
+    ) { lastSeen, history ->
+        val latest = history.firstOrNull()?.createdAtEpochMillis ?: 0L
+        latest > lastSeen
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = false,
+    )
+
+    /** 查看過洞察（AiResultDialog 顯示過即算，含直接關閉）→ 標記已讀、圓點消失 */
+    fun markInsightSeen() {
+        viewModelScope.launch {
+            settingsRepository.setLastSeenInsightEpochMillis(System.currentTimeMillis())
+        }
+    }
 }

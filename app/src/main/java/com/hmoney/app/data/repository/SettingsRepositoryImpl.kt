@@ -38,6 +38,7 @@ class SettingsRepositoryImpl @Inject constructor(
     private val aiAutoCleanupKey = booleanPreferencesKey("ai_auto_cleanup")
     private val aiShowQuickPromptsKey = booleanPreferencesKey("ai_show_quick_prompts")
     private val aiCurrentSessionIdKey = longPreferencesKey("ai_current_session_id")
+    private val lastSeenInsightKey = longPreferencesKey("last_seen_insight")
 
     override fun observeAppearance(): Flow<AppearanceSettings> =
         context.settingsDataStore.data.map { prefs ->
@@ -125,6 +126,17 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setAiCurrentSessionId(sessionId: Long) {
         context.settingsDataStore.edit { prefs ->
             prefs[aiCurrentSessionIdKey] = sessionId
+        }
+    }
+
+    override fun observeLastSeenInsight(): Flow<Long> =
+        context.settingsDataStore.data.map { prefs ->
+            prefs[lastSeenInsightKey] ?: 0L
+        }
+
+    override suspend fun setLastSeenInsightEpochMillis(epochMillis: Long) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[lastSeenInsightKey] = epochMillis
         }
     }
 }

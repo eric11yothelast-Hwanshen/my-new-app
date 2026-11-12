@@ -67,13 +67,15 @@ class ChatRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteSession(id: Long) {
-        sessionDao.deleteById(id)
+        sessionDao.deleteByIdWithMessages(id)
     }
 
     override suspend fun clearAll() {
-        chatMessageDao.deleteAll()
-        sessionDao.deleteAll()
+        sessionDao.clearAllTables()
     }
+
+    override suspend fun deleteEmptySessions(): Int =
+        sessionDao.deleteEmptySessions()
 
     override suspend fun deleteSessionsOlderThan(cutoffEpochMillis: Long): Int =
         sessionDao.deleteOlderThan(cutoffEpochMillis)
