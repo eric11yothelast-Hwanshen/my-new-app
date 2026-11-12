@@ -239,7 +239,7 @@ private fun AiSection(
 private fun progressColor(level: BudgetEvaluator.Level): androidx.compose.ui.graphics.Color =
     when (level) {
         BudgetEvaluator.Level.NORMAL -> MaterialTheme.colorScheme.primary
-        BudgetEvaluator.Level.WARNING -> androidx.compose.ui.graphics.Color(0xFFFFA726)
+        BudgetEvaluator.Level.WARNING -> MaterialTheme.colorScheme.tertiary
         BudgetEvaluator.Level.OVER -> MaterialTheme.colorScheme.error
     }
 

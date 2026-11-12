@@ -19,6 +19,14 @@
 
 ## Session 紀錄
 
+- **Session 21（淺色模式與動態色彩全面檢查＋最小修正，已完成）**：沙箱無法跑實機，以程式碼層級逐頁審查（深色／淺色／動態色彩三組合），只修有對比或可讀問題處；動態色彩（API 31+）經 Theme.kt dynamicDark/LightColorScheme 正確套用，語意色（error／primary／tertiary）皆從 colorScheme 取用，動態模式下自動跟隨。
+  - **修正 1：Glass.kt 玻璃卡描邊**（影響所有頁面卡片，含收支小卡、預算卡、帳戶卡、AI 引導卡）——原描邊預設為寫死 `Color.White.copy(alpha = 0.25f)`，淺色模式下幾乎不可見。改為未指定時依深淺色解析：深色＝`onSurface.copy(alpha = 0.25f)`（視覺同原白色描邊、動態色彩下自動跟隨），淺色＝`colorScheme.outlineVariant`（M3 淺色卡片描邊標準色）。`outlineColor` 參數型別改為可空 `Color?`，HmoneyAppRoot 傳入明確值者不受影響。
+  - **修正 2：帳戶色票未選取邊框**（AccountsScreen 對話框）——原寫死 `Color.White.copy(alpha = 0.5f)`，淺色對話框底上不可見，色票會看不出可點。改為 `colorScheme.outline`。
+  - **修正 3：設定頁預算進度條 80% 警示色**——原寫死 `Color(0xFFFFA726)`（hardcode 違反用色規則）。改為 `colorScheme.tertiary`（M3 警示語意色，深淺色與動態色彩皆自動適配）。門檻 80%/100% 邏輯未動（BudgetEvaluator 勿改警示仍有效）。
+  - **修正 4：AI 洞察對話框建議文字對比**（實機回報略顯不足）——原 bodySmall＋`onSurfaceVariant`，改為 bodyMedium＋預設 `onSurface`；時間戳維持 labelSmall＋`onSurfaceVariant`（次要資訊層級）。
+  - **檢查過、無問題**：帳戶卡 12% 低透明度疊染（深淺色皆呈淡染色、文字對比不受影響）；CategoryPalette／AccountPalette 色票（Material 400/600 色階用於色塊與圖示而非文字，淺底可辨識，不需雙套切換）；收支小卡（error／primary＋1dp 框，淺色可讀）；預算卡進度條（primary／tertiary／error）；統計空狀態（outline 圖示＋onSurfaceVariant 文字＋Button）；SwipeToRevealRow（動作鈕 secondaryContainer／errorContainer，前景 surface 底色，淺色邊界可辨識）；AutoHideFabColumn（無自訂色）；記帳 Sheet 與各對話框（皆 M3 標準元件，無 hardcode——全域掃描僅上述三處已修）。
+  - **驗證方式**：沙箱無 JDK/Android SDK，括號平衡以 Python 檢查；lint＋單元測試＋雙 APK 由 GitHub Actions 執行；深淺色／動態色彩實機驗收待使用者確認。
+
 - **Session 20（AI 本週洞察結構化＋未設定 Key 引導，已完成）**：改 AiRepositoryImpl.kt、AiResultDialog.kt、FeatureAiViewModel.kt、OverviewScreen.kt、CategoryPalette.kt 與字串資源；未新增網路層，AI 呼叫全部沿用既有 AiRepository 與 loading／取消／錯誤分流。
   - **JSON prompt 格式（請勿誤改）**：analyzeWeek 的 system prompt 改為要求三欄位 `{"summary": "一段整體摘要", "topCategories": [{"name", "amount"}]（最多 3 筆、金額由大到小）, "advice": "一條具體建議"}`；解析時 topCategories 相容純字串陣列，存入既有 insights 欄位（「名稱：金額」格式一行一筆）、advice 存入 tips 欄位——DB schema 未動，AI 分析頁歷史列表（逐行顯示）相容。
   - **Fallback 行為（請勿誤改）**：解析失敗或三欄位全空時，parseContent 回傳 null，由既有 execute() fallback 把原始文字整段視為 summary 顯示；一律走既有 try-catch／AiOutcome 錯誤分流，未新增例外路徑。

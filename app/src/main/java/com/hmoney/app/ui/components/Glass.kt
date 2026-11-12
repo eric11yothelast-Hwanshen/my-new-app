@@ -3,11 +3,13 @@ package com.hmoney.app.ui.components
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,21 +38,28 @@ fun Modifier.glassSource(state: HazeState): Modifier = this.hazeSource(state)
 fun Modifier.glassSurface(
     state: HazeState,
     fallbackColor: Color,
-    outlineColor: Color = Color.White.copy(alpha = 0.25f),
+    outlineColor: Color? = null,
     cornerRadius: Dp = 24.dp,
 ): Modifier {
     val shape = RoundedCornerShape(cornerRadius)
+    // 未指定時依深淺色解析：深色沿用白色系描邊（玻璃質感），淺色改用 outlineVariant（白描邊在淺底不可見）
+    val resolvedOutline = outlineColor
+        ?: if (isSystemInDarkTheme()) {
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.25f)
+        } else {
+            MaterialTheme.colorScheme.outlineVariant
+        }
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         clip(shape)
             .hazeBlur(
                 input = HazeInput.Sources(state),
                 style = HazeMaterials.thin(),
             )
-            .border(width = 1.dp, color = outlineColor, shape = shape)
+            .border(width = 1.dp, color = resolvedOutline, shape = shape)
     } else {
         clip(shape)
             .background(color = fallbackColor)
-            .border(width = 1.dp, color = outlineColor, shape = shape)
+            .border(width = 1.dp, color = resolvedOutline, shape = shape)
     }
 }
 

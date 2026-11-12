@@ -160,8 +160,7 @@ fun AiResultDialog(
                         analysis.tips.firstOrNull()?.let {
                             Text(
                                 text = it,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium,
                             )
                         }
                         // 生成時間（相對時間）＋重新分析

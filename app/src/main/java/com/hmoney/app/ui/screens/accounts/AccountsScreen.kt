@@ -401,7 +401,7 @@ private fun AccountDialog(
                                     color = if (color == c) {
                                         MaterialTheme.colorScheme.primary
                     } else {
-                                        Color.White.copy(alpha = 0.5f)
+                                        MaterialTheme.colorScheme.outline
                                     },
                                     shape = CircleShape,
                                 )
