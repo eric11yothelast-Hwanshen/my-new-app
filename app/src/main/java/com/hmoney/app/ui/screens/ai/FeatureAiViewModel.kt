@@ -11,8 +11,10 @@ import com.hmoney.app.domain.repository.AiOutcome
 import com.hmoney.app.domain.repository.AiRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -36,6 +38,9 @@ class FeatureAiViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
     val uiState: StateFlow<UiState> = _uiState
+
+    /** 是否已設定 AI 連線（每次收集時重新讀取，回到畫面即取最新值） */
+    val aiConfigured: Flow<Boolean> = aiRepository.observeConfig().map { it.isConfigured }
 
     private var job: Job? = null
 

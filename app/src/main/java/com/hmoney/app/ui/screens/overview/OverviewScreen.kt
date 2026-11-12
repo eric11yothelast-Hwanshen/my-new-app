@@ -75,6 +75,7 @@ fun OverviewScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val aiState by aiViewModel.uiState.collectAsState()
+    val aiConfigured by aiViewModel.aiConfigured.collectAsState(initial = true)
     var showAddSheet by remember { mutableStateOf(false) }
     var showAiSheet by remember { mutableStateOf(false) }
     val glassState = rememberHazeState()
@@ -105,17 +106,34 @@ fun OverviewScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     AnimatedAmountText(cents = state.totalBalanceCents)
-                    // 本週 AI 洞察按鈕
-                    TextButton(
-                        onClick = aiViewModel::weekInsight,
-                        modifier = Modifier.align(Alignment.Start),
-                    ) {
-                        Icon(
-                            Icons.Outlined.AutoAwesome,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Text(" " + stringResource(R.string.ai_insight_week))
+                    // 本週 AI 洞察按鈕；未設定 AI 時改為引導卡
+                    if (aiConfigured) {
+                        TextButton(
+                            onClick = aiViewModel::weekInsight,
+                            modifier = Modifier.align(Alignment.Start),
+                        ) {
+                            Icon(
+                                Icons.Outlined.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Text(" " + stringResource(R.string.ai_insight_week))
+                        }
+                    } else {
+                        GlassCard(
+                            glassState = glassState,
+                            modifier = Modifier.align(Alignment.Start),
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = stringResource(R.string.overview_ai_guide),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                TextButton(onClick = onGoSettings) {
+                                    Text(stringResource(R.string.ai_go_settings))
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -382,6 +400,7 @@ fun OverviewScreen(
             onCancel = aiViewModel::cancel,
             onGoSettings = onGoSettings,
             onDismiss = aiViewModel::reset,
+            onRetry = aiViewModel::weekInsight,
         )
     }
 }

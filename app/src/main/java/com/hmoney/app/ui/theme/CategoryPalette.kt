@@ -19,4 +19,7 @@ object CategoryPalette {
     )
 
     fun colorOf(name: String, fallbackArgb: Long): Color = byName[name] ?: Color(fallbackArgb)
+
+    /** 以分類名稱查固定色；未收錄（自訂分類）回傳 null，由呼叫端決定 fallback */
+    fun colorOfNameOrNull(name: String): Color? = byName[name]
 }

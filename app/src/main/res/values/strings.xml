@@ -253,6 +253,8 @@
     <string name="ai_close">關閉</string>
     <string name="ai_result_title">AI 分析結果</string>
     <string name="ai_insight_week">本週 AI 洞察</string>
+    <string name="ai_retry">重新分析</string>
+    <string name="overview_ai_guide">設定 AI 之後，可以獲得每月花費分析</string>
     <string name="ai_analyze_period">AI 分析本期</string>
     <string name="ai_analyze_accounts">AI 解讀帳戶</string>
     <string name="ai_analyze_batch">批次分析</string>

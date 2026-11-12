@@ -19,6 +19,14 @@
 
 ## Session 紀錄
 
+- **Session 20（AI 本週洞察結構化＋未設定 Key 引導，已完成）**：改 AiRepositoryImpl.kt、AiResultDialog.kt、FeatureAiViewModel.kt、OverviewScreen.kt、CategoryPalette.kt 與字串資源；未新增網路層，AI 呼叫全部沿用既有 AiRepository 與 loading／取消／錯誤分流。
+  - **JSON prompt 格式（請勿誤改）**：analyzeWeek 的 system prompt 改為要求三欄位 `{"summary": "一段整體摘要", "topCategories": [{"name", "amount"}]（最多 3 筆、金額由大到小）, "advice": "一條具體建議"}`；解析時 topCategories 相容純字串陣列，存入既有 insights 欄位（「名稱：金額」格式一行一筆）、advice 存入 tips 欄位——DB schema 未動，AI 分析頁歷史列表（逐行顯示）相容。
+  - **Fallback 行為（請勿誤改）**：解析失敗或三欄位全空時，parseContent 回傳 null，由既有 execute() fallback 把原始文字整段視為 summary 顯示；一律走既有 try-catch／AiOutcome 錯誤分流，未新增例外路徑。
+  - **洞察結果結構化**：AiResultDialog 的 Insight 分支改為「摘要 → Top 3 支出分類（CategoryPalette 色點，未收錄的自訂分類以 colorScheme.primary 顯示）→ 一條建議 → 生成時間（DateUtils 相對時間）」；新增可選參數 onRetry（預設 null），只有總覽頁傳入（重新分析＝再呼 weekInsight，走既有 Loading 狀態），其他入口不受影響。
+  - **未設定 Key 引導**：FeatureAiViewModel 新增 `aiConfigured: Flow<Boolean>`（observeConfig map isConfigured，每次收集重新讀取，避免回到畫面時拿到舊值）；OverviewScreen 未設定時以 GlassCard 顯示「設定 AI 之後，可以獲得每月花費分析」＋「前往設定」按鈕（沿用 onGoSettings）。明細／統計／帳戶的 AI 入口未設定時本就經 NotConfigured 錯誤對話框引導（已驗證，未改）。
+  - **新字串**：ai_retry「重新分析」、overview_ai_guide「設定 AI 之後，可以獲得每月花費分析」。
+  - **驗證方式**：沙箱無 JDK/Android SDK，括號平衡以 Python 檢查；lint＋單元測試＋雙 APK 由 GitHub Actions 執行。
+
 - **Session 19（帳戶頁卡片視覺升級＋顏色與圖示自訂，已完成）**：AccountsScreen 帳戶卡片以帳戶色主題化——卡片內 Row 最左側加 4dp 圓角色條（填 Color(account.colorArgb)），卡片外層以 Box 疊上帳戶色 12% 透明度圓角染色（RoundedCornerShape(24.dp)，不攔截點擊，點擊仍由 GlassCard 處理）；餘額字級 titleMedium → titleLarge，帳戶名 titleMedium → bodyMedium（次要層級），貨幣標籤不變。新增／編輯帳戶對話框色票由寫死在 AccountsScreen 的 6 色改為 ui/theme/AccountPalette.kt 共用常數檔的 10 色（Material 400/600 色階，深淺色皆可讀）；DB schema 未動（colorArgb/iconKey 為既有欄位）。IconMapper.accountIconKeys 新增「smartphone」（手機支付）與「trending_up」（股票）兩個 iconKey，帳戶可挑選圖示由 5 個增至 7 個。明細／總覽頁顯示帳戶圖示與顏色處經 Color(account.colorArgb) 自動跟隨，未另外修改。
   - **驗證方式**：沙箱無 JDK/Android SDK，括號平衡以 Python 檢查；lint＋單元測試＋雙 APK 由 GitHub Actions 執行。
 

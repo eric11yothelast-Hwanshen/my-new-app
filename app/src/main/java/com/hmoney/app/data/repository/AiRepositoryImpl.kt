@@ -234,9 +234,8 @@ class AiRepositoryImpl @Inject constructor(
 
         val systemPrompt = """
             你是一位專業的個人財務分析師。請閱讀使用者提供的本週記帳資料，
-            並以繁體中文回傳 JSON（格式：{"summary": "總結", "insights": ["分類洞察", ...],
-            "anomalies": ["異常支出偵測", ...], "tips": ["具體省錢建議", ...]}）。
-            只回傳 JSON，不要加其他文字。
+            並以繁體中文回傳 JSON（格式：{"summary": "一段整體摘要", "topCategories": [{"name": "分類名稱", "amount": "金額或描述"}], "advice": "一條具體建議"}）。
+            topCategories 最多 3 筆，依金額由大到小排列。只回傳 JSON，不要加其他文字。
         """.trimIndent()
 
         return execute(
@@ -468,18 +467,35 @@ class AiRepositoryImpl @Inject constructor(
                     .removePrefix("```json").removePrefix("```")
                     .removeSuffix("```").trim()
                 val parsed = JSONObject(jsonText)
-                fun lines(key: String): List<String> = runCatching {
-                    val arr = parsed.getJSONArray(key)
-                    (0 until arr.length()).map { arr.getString(it) }
+                // topCategories：預期 [{"name","amount"}]，相容純字串陣列；
+                // 解析失敗或全空時回傳 null，由呼叫端以原始文字作為摘要（不開新例外路徑）
+                val topCategories = runCatching {
+                    val arr = parsed.getJSONArray("topCategories")
+                    (0 until arr.length()).mapNotNull { i ->
+                        val obj = arr.optJSONObject(i)
+                        if (obj != null) {
+                            val name = obj.optString("name").trim()
+                            val amount = obj.optString("amount").trim()
+                            when {
+                                name.isBlank() -> null
+                                amount.isBlank() -> name
+                                else -> "$name：$amount"
+                            }
+                        } else {
+                            arr.optString(i).trim().takeIf { it.isNotBlank() }
+                        }
+                    }
                 }.getOrDefault(emptyList())
+                val advice = parsed.optString("advice").trim().takeIf { it.isNotBlank() }
                 AiAnalysis(
                     createdAtEpochMillis = System.currentTimeMillis(),
                     query = "",
                     summary = parsed.optString("summary"),
-                    insights = lines("insights"),
-                    anomalies = lines("anomalies"),
-                    tips = lines("tips"),
-                )
+                    insights = topCategories,
+                    tips = listOfNotNull(advice),
+                ).takeIf {
+                    it.summary.isNotBlank() || it.insights.isNotEmpty() || it.tips.isNotEmpty()
+                }
             }
         }.getOrNull()
     }
