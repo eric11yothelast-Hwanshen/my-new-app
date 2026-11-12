@@ -83,6 +83,40 @@ class AiContentExtractTest {
     }
 
     @Test
+    fun `單一 text 區塊內整段重複兩次摺疊為一份`() {
+        val body = "本週餐飲支出明顯偏高，建議檢視每日飲食消費習慣。"
+        val raw = rawResponse(
+            "\"" + "{\\\"type\\\":\\\"text\\\",\\\"text\\\":\\\"$body\\n\\n$body\\\"}" + "\"",
+        )
+        assertEquals(body, extractAiContent(raw))
+    }
+
+    @Test
+    fun `兩個完全相同的長 text 區塊仍只出現一份`() {
+        val body = "建議控制外食頻率並設定每月餐飲預算上限。"
+        val raw = rawResponse(
+            """[{"type":"text","text":"$body"},{"type":"text","text":"$body"}]""",
+        )
+        assertEquals(body, extractAiContent(raw))
+    }
+
+    @Test
+    fun `列點內容含重複開頭但語意不同的行不可被誤刪`() {
+        val body = "以下三點建議：\n- 建議減少外食次數以降低餐飲支出\n- 建議設定每月娛樂預算上限避免超支\n- 建議定期檢視訂閱服務取消未使用者"
+        val raw = rawResponse(
+            "\"" + "{\\\"type\\\":\\\"text\\\",\\\"text\\\":\\\"$body\\\"}" + "\"",
+        )
+        assertEquals(body, extractAiContent(raw))
+    }
+
+    @Test
+    fun `純字串 content 帶段落級重複正常摺疊`() {
+        val body = "本月支出較上月增加一成，主因為餐飲與娛樂類別。"
+        val raw = rawResponse("\"$body\\n\\n$body\"")
+        assertEquals(body, extractAiContent(raw))
+    }
+
+    @Test
     fun `只有 thinking 區塊時回 null 交由上層顯示解析錯誤`() {
         val raw = rawResponse("""[{"type":"thinking","thinking":"內部思考"}]""")
         assertNull(extractAiContent(raw))

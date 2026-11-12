@@ -37,6 +37,12 @@ import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** 對話類呼叫溫度（Session 33 決策）：較高溫讓口語回覆更自然 */
+private const val AI_CHAT_TEMPERATURE = 0.65
+
+/** 分析類呼叫溫度（Session 30 既有值，不變） */
+private const val AI_ANALYSIS_TEMPERATURE = 0.4
+
 /**
  * AI 倉儲實作：
  * - 設定存 EncryptedSharedPreferences
@@ -99,6 +105,7 @@ class AiRepositoryImpl @Inject constructor(
                 systemPrompt = systemPrompt,
                 userPrompt = "使用者問題：$question",
                 reasoningEffort = "none",
+                temperature = AI_CHAT_TEMPERATURE,
             )
         }
         val zone = ZoneId.systemDefault()
@@ -110,6 +117,7 @@ class AiRepositoryImpl @Inject constructor(
             systemPrompt = systemPrompt,
             userPrompt = "記帳資料（已精簡去敏感化）：\n$weekData\n$monthData\n$accountsData\n\n使用者問題：$question",
             reasoningEffort = "none",
+            temperature = AI_CHAT_TEMPERATURE,
         )
     }
 
@@ -361,10 +369,11 @@ class AiRepositoryImpl @Inject constructor(
         systemPrompt: String,
         userPrompt: String,
         reasoningEffort: String? = null,
+        temperature: Double = AI_ANALYSIS_TEMPERATURE,
     ): AiTextResult {
         val config = configStore.read()
         if (!config.isConfigured) return AiTextResult.Failure(AiError.NotConfigured)
-        return when (val raw = request(config, systemPrompt, userPrompt, reasoningEffort)) {
+        return when (val raw = request(config, systemPrompt, userPrompt, reasoningEffort, temperature)) {
             is String -> when (val text = extractContent(raw)) {
                 null -> AiTextResult.Failure(AiError.Parse)
                 else -> AiTextResult.Success(text)
@@ -392,6 +401,7 @@ class AiRepositoryImpl @Inject constructor(
         systemPrompt: String,
         userPrompt: String,
         reasoningEffort: String? = null,
+        temperature: Double = AI_ANALYSIS_TEMPERATURE,
     ): Any {
         val endpoint = config.baseUrl.trimEnd('/') + "/chat/completions"
 
@@ -403,7 +413,7 @@ class AiRepositoryImpl @Inject constructor(
                     .put(JSONObject().put("role", "system").put("content", systemPrompt))
                     .put(JSONObject().put("role", "user").put("content", userPrompt)),
             )
-            put("temperature", 0.4)
+            put("temperature", temperature)
             if (effort != null) put("reasoning_effort", effort)
             if (withSampling) {
                 put("frequency_penalty", 0.3)
@@ -565,7 +575,7 @@ internal fun extractAiContent(raw: String): String? = runCatching {
         .getJSONObject("message")
         .get("content")
     when (content) {
-        is String -> sanitizeAiText(content).ifBlank { null }
+        is String -> collapseFullTextDuplication(sanitizeAiText(content))
         is JSONArray -> {
             var merged = ""
             for (i in 0 until content.length()) {
@@ -573,12 +583,59 @@ internal fun extractAiContent(raw: String): String? = runCatching {
                 if (block.optString("type") != "text") continue
                 merged = mergeBlocksWithOverlapDedup(merged, block.optString("text"))
             }
-            sanitizeAiText(merged).ifBlank { null }
+            collapseFullTextDuplication(sanitizeAiText(merged))
         }
-        is JSONObject -> sanitizeAiText(content.optString("text")).ifBlank { null }
+        is JSONObject -> collapseFullTextDuplication(sanitizeAiText(content.optString("text")))
         else -> null
     }
 }.getOrNull()
+
+/**
+ * 全文層重複摺疊（Session 33 決策，請勿誤改）：
+ * 模型端 reasoning 洩漏退化會讓「整段回覆」在同一則訊息內逐字重複兩次，
+ * 區塊層 mergeBlocksWithOverlapDedup 涵蓋不到單一 text 區塊內部的重複，
+ * 因此在 sanitizeAiText 之後、回傳前做最後一道防禦：
+ * 1. 整段兩半完全逐字相同（段落或中點切分，容許中間一個分隔字元）只保留一份；
+ * 2. 段落序列去重——與先前完整段落完全相同的段落丟棄。
+ * 刻意保守：只做「完全逐字相同」比對，不做相似度模糊比對、不刪短句；
+ * 門檻 >= 20 字元才處理，避免誤傷「好」「1」等短行與列點開頭語。請勿改為模糊比對。
+ * 處理後若為空白回 null。
+ */
+internal fun collapseFullTextDuplication(text: String): String? {
+    val trimmed = text.trim()
+    if (trimmed.isEmpty()) return null
+    val folded = foldExactHalfDuplication(trimmed)
+    val seen = mutableSetOf<String>()
+    val deduped = folded.split('\n').filter { line ->
+        line.trim().length < AI_FULL_TEXT_DEDUP_MIN_LENGTH || seen.add(line.trim())
+    }
+    return deduped.joinToString("\n").trim().ifBlank { null }
+}
+
+private const val AI_FULL_TEXT_DEDUP_MIN_LENGTH = 20
+
+/** 整段兩半完全逐字相同時只保留一份（切分點：換行邊界與中點，容許中間一個分隔字元） */
+private fun foldExactHalfDuplication(text: String): String {
+    if (text.length < AI_FULL_TEXT_DEDUP_MIN_LENGTH * 2) return text
+    val candidates = mutableListOf<Int>()
+    for (i in text.indices) {
+        if (text[i] == '\n') candidates.add(i)
+    }
+    candidates.add(text.length / 2)
+    for (i in candidates) {
+        if (i <= 0 || i >= text.length) continue
+        val head = text.substring(0, i).trim()
+        val tail = text.substring(i).trim()
+        if (head.length >= AI_FULL_TEXT_DEDUP_MIN_LENGTH && head == tail) return head
+    }
+    if (text.length % 2 == 1) {
+        val mid = text.length / 2
+        val head = text.substring(0, mid)
+        val tail = text.substring(mid + 1)
+        if (head.length >= AI_FULL_TEXT_DEDUP_MIN_LENGTH && head == tail) return head
+    }
+    return text
+}
 
 private val aiJsonFragmentRegex = Regex("\\{\\s*\"type\"\\s*:")
 

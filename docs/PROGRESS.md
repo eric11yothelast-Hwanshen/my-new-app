@@ -19,6 +19,13 @@
 
 ## Session 紀錄
 
+- **Session 33（AI 回覆整段重複兩次修復：全文層重複摺疊＋chat 溫度分流，已完成）**：實測截圖確認 AI 回覆整段文字在同一則訊息內重複兩次；區塊層 mergeBlocksWithOverlapDedup 無效，因為重複發生在單一 text 區塊內部——Mistral 上 reasoning 模型（尤其 GLM 5.3 家族）的已知模型端 bug：reasoning 洩漏進 text 通道後退化成重複迴圈，官方 reasoning_effort="none" 對 GLM 系也壓不掉（content 永遠是 chunk 清單）。參考：github.com/mawoh/pi-mistral-native/issues/27、zai-org/feedback#819、docs.mistral.ai/studio/conversations/reasoning。用戶端唯一解法是最後一道的防禦性全文去重。
+  - **修復（僅改 AiRepositoryImpl.kt 與 AiContentExtractTest.kt）**：extractAiContent() 的輸出端（sanitizeAiText 之後、回傳前）新增全文層 collapseFullTextDuplication()——(1) 整段兩半完全逐字相同（段落或中點切分，容許中間一個分隔字元）只保留一份；(2) 段落序列去重，與先前完整段落完全相同者丟棄；處理後空白回 null。
+  - **請勿誤改**：全文層去重的「完全逐字相同」比對＋「重複段落長度 >= 20 字元」門檻是刻意保守設計，不可改成相似度模糊比對、不可刪短句（避免誤刪「好」「1」等短行與列點開頭語等模型刻意的重複表述）。Session 31 三形態解析、Session 32 區塊層去重、sanitizeAiText 只碰「[」開頭陣列的行為全部保留未動。
+  - **溫度分流補落地**：request() 的 temperature 改為參數（預設分析類 0.4，Session 30 既有值不變）；chat() 類呼叫傳 0.65（對話類較高溫讓口語回覆更自然）；分析類（polishNote/suggestForNote/interpretFilter/analyzeData/analyzeWeek/askQuestion）維持 0.4。400 階梯重試邏輯不變。
+  - **單元測試**：AiContentExtractTest 補四案——單區塊內整段重複兩次摺疊為一份、兩個完全相同長 text 區塊仍只出一份（防回歸）、列點內容含重複開頭但語意不同的行不可被誤刪、純字串 content 帶段落級重複正常摺疊。
+  - **驗證方式**：沙箱無 JDK/Android SDK（與先前 session 相同），lint＋單元測試＋雙 APK 簽署由 GitHub Actions 執行。
+
 - **Session 32（AI 回覆開頭句子重複治本：reasoning_effort 階梯＋text 區塊重疊去重，已完成）**：mistral-medium/large-latest 是推理模型，message.content 是「thinking 區塊＋text 區塊」清單；多個 text 區塊內容重疊（短區塊是長區塊的前綴）時，原串接邏輯造成回覆開頭同一句連續重複兩次。
   - **reasoning_effort 階梯（請勿誤改）**：request() 新增 reasoningEffort 參數（預設 null 不帶參數）。對話類 chat() 兩條路徑（純聊天／附記帳資料）都帶 `reasoning_effort="none"`——medium/small 系列支援，content 直接變純字串、thinking 完全關閉、最乾淨。400 階梯（最多兩層重試）：none → "low" → 移除 sampling 參數的裸 body；再失敗才回 AiError.Http(400)。分析類呼叫（analyzeWeek／analyzeData 等，reasoningEffort=null）行為不變：帶 sampling 參數，400 時改裸 body 重試一次。
   - **text 區塊重疊去重（請勿誤改）**：extractAiContent() 串接多個 text 區塊前，用 mergeBlocksWithOverlapDedup() 檢查——後一塊以已累積內容為開頭（或完全相同）時丟棄較短者只保留最長；這是區塊層去重，不做任意句子層去重，避免誤刪模型刻意的重複表述。
