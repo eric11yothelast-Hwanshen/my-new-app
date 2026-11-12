@@ -149,7 +149,9 @@ fun SettingsScreen(
         NotificationSection(onOpenWizard = onOpenWizard)
 
         // ===== 預算 =====
-        BudgetSection(budgetViewModel)
+        BudgetSection(budgetViewModel, onSaved = {
+            scope.launch { snackbarHostState.showSnackbar(budgetSavedMessage) }
+        })
 
         // ===== 週期交易 =====
         RecurringSection(recurringViewModel)
@@ -159,6 +161,13 @@ fun SettingsScreen(
 
         // ===== 備份與還原 =====
         BackupSection()
+    }
+
+    // 預算儲存回饋（Snackbar）
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier.align(Alignment.BottomCenter),
+    )
     }
 }
 
@@ -235,7 +244,10 @@ private fun progressColor(level: BudgetEvaluator.Level): androidx.compose.ui.gra
     }
 
 @Composable
-private fun BudgetSection(viewModel: BudgetViewModel) {
+private fun BudgetSection(
+    viewModel: BudgetViewModel,
+    onSaved: () -> Unit = {},
+) {
     val state by viewModel.uiState.collectAsState()
     var editingTotal by remember { mutableStateOf(false) }
     var editingCategoryId by remember { mutableStateOf<Long?>(null) }
@@ -351,13 +363,6 @@ private fun BudgetSection(viewModel: BudgetViewModel) {
         }
     }
 
-    // 預算儲存回饋（Snackbar）
-    SnackbarHost(
-        hostState = snackbarHostState,
-        modifier = Modifier.align(Alignment.BottomCenter),
-    )
-    }
-
     if (editingTotal) {
         BudgetAmountDialog(
             title = stringResource(R.string.budget_total),
@@ -365,7 +370,7 @@ private fun BudgetSection(viewModel: BudgetViewModel) {
             onSave = { cents ->
                 viewModel.setTotalBudget(cents)
                 editingTotal = false
-                scope.launch { snackbarHostState.showSnackbar(budgetSavedMessage) }
+                onSaved()
             },
         )
     }
@@ -376,7 +381,7 @@ private fun BudgetSection(viewModel: BudgetViewModel) {
             onSave = { cents ->
                 viewModel.setCategoryBudget(categoryId, cents)
                 editingCategoryId = null
-                scope.launch { snackbarHostState.showSnackbar(budgetSavedMessage) }
+                onSaved()
             },
         )
     }
