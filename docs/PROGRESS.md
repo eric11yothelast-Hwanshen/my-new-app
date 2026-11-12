@@ -19,6 +19,13 @@
 
 ## Session 紀錄
 
+- **Session 17（明細頁交易項目滑動操作：編輯／刪除，已完成）**：只改 TransactionsScreen.kt；AddTransactionSheet、刪除確認對話框、ViewModel、資料層完全未動。
+  - **改了什麼**：LazyColumn 內每筆交易項目（僅交易列，不含日期分組標題）包進 Material3 `SwipeToDismissBox`，左滑露出「編輯」「刪除」兩個圓形按鈕（編輯用 secondaryContainer、刪除用 errorContainer，皆取自 colorScheme）；點按鈕先 `snapTo(Settled)` 收回再沿用既有流程（編輯＝editingId 開 AddTransactionSheet、刪除＝deletingId 開既有確認對話框）。
+  - **方向決策（請勿誤改）**：採 **EndToStart（手指向左滑）**——需求第 1 點「左滑露出動作」與第 3 點「右滑不觸發」兩者一致指向左滑；原文括號內的「StartToEnd」與第 3 點矛盾，以行為描述為準。`enableStartToEnd = false`、`enableEndToStart = true`，右滑完全不起作用、未達門檻放開自動回彈。
+  - **互動設計**：滑過門檻後項目停住（SwipeToDismissBox 特性：內容滑出、背景動作區取代整列）；動作區空白處可點擊收回（因內容已完全滑出、無法再對內容滑動收回，此為必要逃生口）；動作需明確點按鈕才觸發，快滑慢滑都不會誤觸。
+  - **既有行為保留**：列尾原本常駐的編輯／刪除按鈕未移除（需求未要求移除，維持不變更原則）；TransactionRow 本身無點擊行為，分組標題不包滑動元件，無手勢衝突。
+  - **驗證方式**：沙箱無 JDK/Android SDK（與先前 session 相同），括號平衡已以 Python 檢查；lint＋單元測試＋雙 APK 簽署由 GitHub Actions 執行，Release 頁可下載。
+
 - **Session 16（記帳頁常用備註快捷選填＋連記模式，已完成）**：只改 AddTransactionSheet.kt、AddTransactionViewModel.kt 與字串資源；捲動結構（外層不捲動＋中段 weight(1f) 可捲動＋鍵盤固定底部）與 CategoryGrid 完全未動，無 DB schema 變更。
   - **常用備註 chips**：位置在備註欄下方、AI 載入列之後、標籤欄之前，位於既有捲動區內。新 private composable `RecentNotesChips`——FlowRow 自動換行、本身不捲動（垂直軸向仍只有中段一個捲動容器），AssistChip 點擊直接帶入備註欄（viewModel.setNote）；無資料時整列不顯示（不會有空列）。
   - **chips 資料來源決策**：擇 ViewModel 記憶體去重——AddTransactionViewModel 新增 `recentNotes: StateFlow<List<String>>`，由既有 `transactionRepository.observeTransactions()` map→去空→distinct→take(5)（DAO 本身 ORDER BY dateEpochMillis DESC，新到舊）。不新增 DAO 查詢、不動 Room schema，也無需補 DAO 測試；chips 更新隨 repository flow 即時反映（延遲一拍可接受）。

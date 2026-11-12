@@ -1,5 +1,7 @@
 package com.hmoney.app.ui.screens.transactions
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.AutoAwesome
@@ -28,7 +31,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
@@ -348,31 +354,95 @@ fun TransactionsScreen(
                         }
                     }
                     items(group.transactions, key = { it.id }) { tx ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(),
+                        val dismissState = rememberSwipeToDismissBoxState()
+                        SwipeToDismissBox(
+                            state = dismissState,
+                            // 僅左滑（EndToStart）可滑出動作：右滑不觸發任何動作、未達門檻放開自動回彈
+                            enableStartToEnd = false,
+                            enableEndToStart = true,
+                            backgroundContent = {
+                                // 左滑到位後停住的動作區：點空白處回彈；按鈕沿用既有編輯／刪除流程
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .clickable {
+                                            scope.launch {
+                                                dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+                                            }
+                                        }
+                                        .padding(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(
+                                        12.dp,
+                                        Alignment.End,
+                                    ),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    IconButton(
+                                        onClick = {
+                                            scope.launch {
+                                                dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+                                            }
+                                            editingId = tx.id
+                                        },
+                                        modifier = Modifier.background(
+                                            MaterialTheme.colorScheme.secondaryContainer,
+                                            CircleShape,
+                                        ),
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.Edit,
+                                            contentDescription = stringResource(R.string.accounts_edit),
+                                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            scope.launch {
+                                                dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+                                            }
+                                            deletingId = tx.id
+                                        },
+                                        modifier = Modifier.background(
+                                            MaterialTheme.colorScheme.errorContainer,
+                                            CircleShape,
+                                        ),
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.Delete,
+                                            contentDescription = stringResource(R.string.common_delete),
+                                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                                        )
+                                    }
+                                }
+                            },
                         ) {
-                            TransactionRow(
-                                transaction = tx,
-                                category = state.categories[tx.categoryId],
-                                accountName = state.accounts
-                                    .firstOrNull { it.id == tx.accountId }?.name,
-                                toAccountName = state.accounts
-                                    .firstOrNull { it.id == tx.toAccountId }?.name,
-                                modifier = Modifier.weight(1f),
-                            )
-                            IconButton(onClick = { editingId = tx.id }) {
-                                Icon(
-                                    Icons.Outlined.Edit,
-                                    contentDescription = stringResource(R.string.accounts_edit),
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                TransactionRow(
+                                    transaction = tx,
+                                    category = state.categories[tx.categoryId],
+                                    accountName = state.accounts
+                                        .firstOrNull { it.id == tx.accountId }?.name,
+                                    toAccountName = state.accounts
+                                        .firstOrNull { it.id == tx.toAccountId }?.name,
+                                    modifier = Modifier.weight(1f),
                                 )
-                            }
-                            IconButton(onClick = { deletingId = tx.id }) {
-                                Icon(
-                                    Icons.Outlined.Delete,
-                                    contentDescription = stringResource(R.string.common_delete),
-                                    tint = MaterialTheme.colorScheme.error,
-                                )
+                                IconButton(onClick = { editingId = tx.id }) {
+                                    Icon(
+                                        Icons.Outlined.Edit,
+                                        contentDescription = stringResource(R.string.accounts_edit),
+                                    )
+                                }
+                                IconButton(onClick = { deletingId = tx.id }) {
+                                    Icon(
+                                        Icons.Outlined.Delete,
+                                        contentDescription = stringResource(R.string.common_delete),
+                                        tint = MaterialTheme.colorScheme.error,
+                                    )
+                                }
                             }
                         }
                     }
