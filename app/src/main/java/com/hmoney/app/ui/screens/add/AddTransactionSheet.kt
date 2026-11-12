@@ -3,6 +3,7 @@ package com.hmoney.app.ui.screens.add
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -589,7 +590,7 @@ private fun TimeFieldButton(
             initialHour = time.hour,
             initialMinute = time.minute,
         )
-        DatePickerDialog(
+        AlertDialog(
             onDismissRequest = { showDialog = false },
             confirmButton = {
                 TextButton(
@@ -604,9 +605,15 @@ private fun TimeFieldButton(
                     Text(stringResource(R.string.add_dismiss))
                 }
             },
-        ) {
-            TimePicker(state = pickerState)
-        }
+            text = {
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    TimePicker(state = pickerState)
+                }
+            },
+        )
     }
     AssistChip(
         onClick = { showDialog = true },

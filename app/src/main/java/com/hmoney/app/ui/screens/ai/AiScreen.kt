@@ -38,6 +38,7 @@ import com.hmoney.app.R
 import com.hmoney.app.ui.common.Formats
 import com.hmoney.app.ui.components.EmptyState
 import com.hmoney.app.ui.components.GlassCard
+import com.hmoney.app.ui.components.MarkdownText
 import com.hmoney.app.ui.components.glassSource
 import dev.chrisbanes.haze.rememberHazeState
 
@@ -203,10 +204,7 @@ fun AiScreen(
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            Text(
-                                text = entry.summary,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
+                            MarkdownText(text = entry.summary)
                         }
                     }
                 }
@@ -247,14 +245,14 @@ private fun AnalysisResultCard(
                 text = stringResource(R.string.ai_summary),
                 style = MaterialTheme.typography.titleSmall,
             )
-            Text(text = analysis.summary, style = MaterialTheme.typography.bodyMedium)
+            MarkdownText(text = analysis.summary)
 
             if (analysis.insights.isNotEmpty()) {
                 Text(
                     text = stringResource(R.string.ai_insights),
                     style = MaterialTheme.typography.titleSmall,
                 )
-                analysis.insights.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
+                analysis.insights.forEach { MarkdownText(text = "• $it") }
             }
             if (analysis.anomalies.isNotEmpty()) {
                 Text(
@@ -262,7 +260,7 @@ private fun AnalysisResultCard(
                     style = MaterialTheme.typography.titleSmall,
                 )
                 analysis.anomalies.forEach {
-                    Text("• $it", style = MaterialTheme.typography.bodyMedium)
+                    MarkdownText(text = "• $it")
                 }
             }
             if (analysis.tips.isNotEmpty()) {
@@ -270,7 +268,7 @@ private fun AnalysisResultCard(
                     text = stringResource(R.string.ai_tips),
                     style = MaterialTheme.typography.titleSmall,
                 )
-                analysis.tips.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium) }
+                analysis.tips.forEach { MarkdownText(text = "• $it") }
             }
         }
     }

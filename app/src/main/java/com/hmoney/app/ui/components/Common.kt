@@ -52,15 +52,21 @@ fun AnimatedAmountText(
     color: androidx.compose.ui.graphics.Color = MaterialTheme.colorScheme.onSurface,
     fontWeight: FontWeight? = null,
 ) {
-    val animated = remember { Animatable(cents.toFloat()) }
+    // NaN 代表尚未收到第一個值：首次組合（含切回頁面）直接以當前值為起始，不重播動畫
+    val animated = remember { Animatable(Float.NaN) }
     LaunchedEffect(cents) {
-        animated.animateTo(
-            targetValue = cents.toFloat(),
-            animationSpec = tween(durationMillis = 600),
-        )
+        if (animated.value.isNaN()) {
+            animated.snapTo(cents.toFloat())
+        } else {
+            animated.animateTo(
+                targetValue = cents.toFloat(),
+                animationSpec = tween(durationMillis = 600),
+            )
+        }
     }
+    val displayCents = if (animated.value.isNaN()) cents else animated.value.toLong()
     Text(
-        text = Formats.moneyWithCurrency(animated.value.toLong(), currency),
+        text = Formats.moneyWithCurrency(displayCents, currency),
         modifier = modifier,
         style = style,
         fontWeight = fontWeight,

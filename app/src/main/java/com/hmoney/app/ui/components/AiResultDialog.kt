@@ -99,7 +99,7 @@ fun AiResultDialog(
                 onDismissRequest = onDismiss,
                 title = { Text(stringResource(R.string.ai_result_title)) },
                 text = {
-                    Text(
+                    MarkdownText(
                         text = state.text,
                         modifier = Modifier.verticalScroll(rememberScrollState()),
                     )
@@ -128,10 +128,7 @@ fun AiResultDialog(
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         // 摘要
-                        Text(
-                            text = analysis.summary,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
+                        MarkdownText(text = analysis.summary)
                         // Top 3 支出分類（CategoryPalette 色點；未收錄的自訂分類以 primary 顯示）
                         analysis.insights.take(3).forEach { line ->
                             val sep = if (line.contains('：')) "：" else ":"
@@ -150,18 +147,14 @@ fun AiResultDialog(
                                             CircleShape,
                                         ),
                                 )
-                                Text(
+                                MarkdownText(
                                     text = if (detail.isBlank()) name else "$name　$detail",
-                                    style = MaterialTheme.typography.bodyMedium,
                                 )
                             }
                         }
                         // 一條建議
                         analysis.tips.firstOrNull()?.let {
-                            Text(
-                                text = it,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
+                            MarkdownText(text = it)
                         }
                         // 生成時間（相對時間）＋重新分析
                         Text(

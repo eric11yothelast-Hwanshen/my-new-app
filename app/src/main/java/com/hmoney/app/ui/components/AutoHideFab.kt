@@ -1,13 +1,14 @@
 package com.hmoney.app.ui.components
 
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -31,11 +32,13 @@ fun AutoHideFabColumn(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val visible = !listState.canScrollBackward
-    val progress by animateFloatAsState(
-        targetValue = if (visible) 0f else 1f,
-        animationSpec = tween(220),
-        label = "fabHideProgress",
-    )
+    val progress = remember { Animatable(if (visible) 0f else 1f) }
+    LaunchedEffect(visible) {
+        val target = if (visible) 0f else 1f
+        if (progress.targetValue != target) {
+            progress.animateTo(target, tween(220))
+        }
+    }
     Column(
         modifier = modifier.graphicsLayer {
             alpha = 1f - progress
