@@ -41,8 +41,8 @@ fun AutoHideFabColumn(
     }
     Column(
         modifier = modifier.graphicsLayer {
-            alpha = 1f - progress
-            translationY = progress * FabHideDistance.toPx()
+            alpha = 1f - progress.value
+            translationY = progress.value * FabHideDistance.toPx()
         },
         verticalArrangement = verticalArrangement,
         horizontalAlignment = horizontalAlignment,
