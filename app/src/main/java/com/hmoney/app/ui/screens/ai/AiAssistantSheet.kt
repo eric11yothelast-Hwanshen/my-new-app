@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
@@ -80,10 +81,19 @@ fun AiAssistantSheet(
                 )
             }
 
+            val listState = rememberLazyListState()
+            LaunchedEffect(state.messages.size, state.loading) {
+                val target = listState.layoutInfo.totalItemsCount - 1
+                if (target >= 0) {
+                    listState.animateScrollToItem(target)
+                }
+            }
+
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 200.dp, max = 360.dp),
+                    .heightIn(min = 200.dp, max = 420.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (state.messages.isEmpty()) {

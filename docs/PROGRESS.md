@@ -19,6 +19,13 @@
 
 ## Session 紀錄
 
+- **Session 26（三項 UI 修復：明細期間列壓縮、AI 對話鍵盤遮擋、設定移出底部分頁，已完成）**：只動 UI 顯示層與 Manifest，不動資料層、AddTransactionSheet 捲動結構與 CategoryGrid。
+  - **Bug 1（期間選定後批次分析按鈕被壓縮，請勿誤改）**：根因＝「期間篩選與批次分析」同列（普通 Row），期間 chip 完整日期字串把「全部」與「批次分析」擠壓截斷。修復＝拆成兩列（外層 `Column(verticalArrangement = Arrangement.spacedBy(8.dp))`）：第一列期間 FilterChip＋「全部」TextButton；第二列批次分析 AssistChip（永遠完整可見可點）。期間 chip label 改短格式 `11/12–11/23`（Formats 新增 `shortDate(epochMillis)`，例：11/12）＋`widthIn(max = 160.dp)`＋`maxLines = 1`＋`TextOverflow.Ellipsis`。**勿把兩列合回單一 Row、勿移除 widthIn/Ellipsis**——否則長日期又會擠壓批次分析按鈕。選定日期後點 chip 重新開啟既有期間對話框，流程不變。
+  - **Bug 2（AI 對話輸入框被鍵盤遮擋，請勿誤改）**：修法四件套缺一不可——(1) AndroidManifest MainActivity 加 `android:windowSoftInputMode="adjustResize"`（edge-to-edge 專案搭配 imePadding 的前提）；(2) AiAssistantSheet 外層 Column 的 `navigationBarsPadding().imePadding()` 保留（ModalBottomSheet content 直接內層）；(3) LazyColumn 改 `rememberLazyListState()`＋`LaunchedEffect(state.messages.size, state.loading)` 自動 `animateScrollToItem(totalItemsCount - 1)`（鍵盤彈出與新訊息都捲到底）；(4) 訊息列表高度 `heightIn(min = 200.dp, max = 420.dp)`（鍵盤彈出時列表壓縮而非輸入列被頂出）。**勿依賴特定鍵盤高度 hardcode**——跨廠牌（Samsung/Gboard）自適應靠 insets 系統而非固定 dp。
+  - **任務 3（設定移出底部分頁，請勿誤改）**：底部分頁五改四（總覽、明細、統計、帳戶）——TopLevelDestination 移除 SETTINGS 項；設定 route 以頂層常數 `SETTINGS_ROUTE = "settings"` 為準（ui/navigation/TopLevelDestination.kt），**勿再加回 SETTINGS 分頁**。四分頁標題列右側各加齒輪 IconButton（Icons.Outlined.Settings，contentDescription = tab_settings）導向設定頁；SettingsScreen 新增 `onBack` 參數＋返回箭頭列（ArrowBack，popBackStack）。各頁既有 onGoSettings 導航流程（AI 未設定引導等）全部保持可用。
+  - **新字串**：common_back（返回）。
+  - **驗證方式**：沙箱無 JDK/Android SDK，括號平衡與 import 檢查以 Python 完成；lint＋單元測試＋雙 APK 由 GitHub Actions 執行；實機請驗證 Gboard 與三星鍵盤下輸入框可見、四頁齒輪進設定、設定頁返回正常。
+
 - **Session 25（期間選取器「結束日期」右側截斷最終修復，已完成）**：只動 TransactionsScreen 的期間對話框與 strings.xml，功能流程完全不變。
   - **根因（請勿誤改警示）**：寬度被三層邊距疊掉——AlertDialog 內建 padding＋自加 16dp＋picker 內建邊距；且 DateRangePicker 的內建 headline（開始–結束日期）是 M3 內部固定排版，窄螢幕或大字體（fontScale）下右側結束日期被截斷。**勿把 AlertDialog 的 horizontal 16dp padding 加回去**——與內建 padding 疊加正是寬度不足主因。
   - **修復 1（自繪 headline）**：DateRangePicker 傳 `title = {}` 與 `headline = {}` 捨棄內建排版，改為 picker 上方自繪 `DateRangeSelectionRow`：Row 內左右兩個欄位各 `Modifier.weight(1f)`（任何寬度與 fontScale 皆等寬、不重疊），左「開始」右「結束」（labelSmall＋onSurfaceVariant），中間 ArrowForward 小圖示；日期以 Formats.date 顯示、未選顯示「尚未選擇」；文字 maxLines=1＋TextOverflow.Ellipsis（最多省略號、絕不溢出）。

@@ -42,6 +42,12 @@ object Formats {
         DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
             .withLocale(Locale.TAIWAN).format(date)
 
+    /** 短日期（例：11/12），供期間 chip 等窄幅顯示 */
+    fun shortDate(epochMillis: Long): String {
+        val date = toLocalDate(epochMillis)
+        return "${date.monthValue}/${date.dayOfMonth}"
+    }
+
     /** 時間（HH:mm） */
     fun time(epochMillis: Long): String =
         DateTimeFormatter.ofPattern("HH:mm", Locale.TAIWAN)

@@ -27,6 +27,7 @@ import androidx.compose.runtime.LaunchedEffect
 import com.hmoney.app.data.work.AI_ASSISTANT_ROUTE
 import com.hmoney.app.ui.components.glassSource
 import com.hmoney.app.ui.components.glassSurface
+import com.hmoney.app.ui.navigation.SETTINGS_ROUTE
 import com.hmoney.app.ui.navigation.TopLevelDestination
 import com.hmoney.app.ui.screens.ai.AiScreen
 import com.hmoney.app.ui.screens.StatsScreen
@@ -122,7 +123,7 @@ fun HmoneyAppRoot(
         ) {
             // AI 錯誤回饋的「前往設定」：切換到設定分頁（AI 連線設定的唯一入口）
             val goSettings = {
-                navController.navigate(TopLevelDestination.SETTINGS.route) {
+                navController.navigate(SETTINGS_ROUTE) {
                     popUpTo(navController.graph.findStartDestination().id) { saveState = true }
                     launchSingleTop = true
                     restoreState = true
@@ -140,8 +141,9 @@ fun HmoneyAppRoot(
             composable(TopLevelDestination.ACCOUNTS.route) {
                 AccountsScreen(onGoSettings = goSettings)
             }
-            composable(TopLevelDestination.SETTINGS.route) {
+            composable(SETTINGS_ROUTE) {
                 SettingsScreen(
+                    onBack = { navController.popBackStack() },
                     onOpenWizard = { navController.navigate(WIZARD_ROUTE) },
                     onOpenAi = { navController.navigate(AI_ASSISTANT_ROUTE) },
                     onOpenCategories = { navController.navigate(CATEGORY_MANAGEMENT_ROUTE) },

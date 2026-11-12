@@ -25,7 +25,9 @@ import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -100,11 +102,23 @@ fun StatsScreen(
                 modifier = Modifier.padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(
-                    text = stringResource(R.string.stats_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    modifier = Modifier.padding(top = 12.dp),
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.stats_title),
+                        style = MaterialTheme.typography.headlineMedium,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                    IconButton(onClick = onGoSettings) {
+                        Icon(
+                            Icons.Outlined.Settings,
+                            contentDescription = stringResource(R.string.tab_settings),
+                        )
+                    }
+                }
 
                 // 時間維度切換：日／週／月／年
                 val periods = StatsAggregator.Period.entries

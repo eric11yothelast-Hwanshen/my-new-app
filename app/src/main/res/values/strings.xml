@@ -284,6 +284,7 @@
     <!-- 通用 -->
     <string name="common_delete">刪除</string>
     <string name="common_cancel">取消</string>
+    <string name="common_back">返回</string>
     <string name="settings_categories">分類管理</string>
     <string name="settings_categories_open">管理分類</string>
     <string name="categories_title">分類管理</string>

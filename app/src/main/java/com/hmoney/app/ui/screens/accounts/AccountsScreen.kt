@@ -30,7 +30,9 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -120,11 +122,24 @@ fun AccountsScreen(
                 .padding(padding)
                 .glassSource(glassState),
         ) {
-            Text(
-                text = stringResource(R.string.accounts_title),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.accounts_title),
+                    style = MaterialTheme.typography.headlineMedium,
+                )
+                IconButton(onClick = onGoSettings) {
+                    Icon(
+                        Icons.Outlined.Settings,
+                        contentDescription = stringResource(R.string.tab_settings),
+                    )
+                }
+            }
 
             // AI 解讀帳戶：餘額變化與現金流建議
             val analyzeTitle = stringResource(R.string.ai_analyze_accounts)

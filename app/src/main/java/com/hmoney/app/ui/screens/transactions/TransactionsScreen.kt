@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.ReceiptLong
@@ -139,11 +140,23 @@ fun TransactionsScreen(
             modifier = Modifier.fillMaxSize(),
         ) {
         Column(modifier = Modifier.padding(horizontal = 20.dp)) {
-            Text(
-                text = stringResource(R.string.transactions_title),
-                style = MaterialTheme.typography.headlineMedium,
-                modifier = Modifier.padding(vertical = 12.dp),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.transactions_title),
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.padding(vertical = 12.dp),
+                )
+                IconButton(onClick = onGoSettings) {
+                    Icon(
+                        Icons.Outlined.Settings,
+                        contentDescription = stringResource(R.string.tab_settings),
+                    )
+                }
+            }
             OutlinedTextField(
                 value = state.filters.keyword,
                 onValueChange = viewModel::setKeyword,
@@ -269,7 +282,8 @@ fun TransactionsScreen(
                 }
             }
 
-            // 期間篩選與批次分析
+            // 期間篩選與批次分析：拆兩列，確保批次分析按鈕永遠完整可見、可點
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
                     selected = state.filters.startDate != null || state.filters.endDate != null,
@@ -278,13 +292,16 @@ fun TransactionsScreen(
                         val start = state.filters.startDate
                         val end = state.filters.endDate
                         Text(
-                            if (start == null && end == null) {
+                            text = if (start == null && end == null) {
                                 stringResource(R.string.transactions_filter_date)
                             } else {
-                                (start?.let { Formats.date(it) } ?: "—") +
-                                    " ~ " +
-                                    (end?.let { Formats.date(it) } ?: "—")
+                                (start?.let { Formats.shortDate(it) } ?: "—") +
+                                    "–" +
+                                    (end?.let { Formats.shortDate(it) } ?: "—")
                             },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.widthIn(max = 160.dp),
                         )
                     },
                 )
@@ -293,6 +310,8 @@ fun TransactionsScreen(
                         Text(stringResource(R.string.transactions_filter_all))
                     }
                 }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 val expenseLabel = stringResource(R.string.add_type_expense)
                 val incomeLabel = stringResource(R.string.add_type_income)
                 val transferLabel = stringResource(R.string.add_type_transfer)
@@ -328,6 +347,7 @@ fun TransactionsScreen(
                     },
                     label = { Text(stringResource(R.string.ai_analyze_batch)) },
                 )
+            }
             }
         }
 
