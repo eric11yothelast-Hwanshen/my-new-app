@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -85,7 +87,10 @@ fun AddTransactionSheet(
     val localSnackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var showDiscardConfirm by remember { mutableStateOf(false) }
+    var continueMode by remember { mutableStateOf(false) }
     val savedMessage = stringResource(R.string.add_saved)
+    val continueSavedMessage = stringResource(R.string.add_continue_saved)
+    val recentNotes by viewModel.recentNotes.collectAsState()
 
     LaunchedEffect(editingId) {
         if (editingId != null) {
@@ -320,6 +325,14 @@ fun AddTransactionSheet(
                 }
             }
 
+            // 常用備註：最近使用過的備註快速帶入（FlowRow 自動換行、本身不捲動，置於既有捲動區內）
+            if (recentNotes.isNotEmpty()) {
+                RecentNotesChips(
+                    notes = recentNotes,
+                    onSelect = viewModel::setNote,
+                )
+            }
+
             OutlinedTextField(
                 value = form.tagsText,
                 onValueChange = viewModel::setTags,
@@ -336,26 +349,46 @@ fun AddTransactionSheet(
                 onBackspace = viewModel::onKeypadBackspace,
             )
 
-            // 鍵盤列送出鍵：完成 ✓（三個分頁一致）
-            Button(
-                onClick = {
-                    viewModel.save(
-                        onSaved = {
-                            snackbarHostState?.let { host ->
-                                scope.launch { host.showSnackbar(savedMessage) }
-                            }
-                            onDismiss()
-                        },
-                    )
-                },
+            // 鍵盤列送出鍵：完成 ✓（三個分頁一致）；右側為連記模式開關（送出後保留帳戶分類、清空金額備註）
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 12.dp, bottom = 12.dp),
             ) {
-                Icon(Icons.Outlined.Check, contentDescription = null)
-                Text(
-                    text = " " + stringResource(R.string.add_done),
-                    style = MaterialTheme.typography.titleMedium,
+                Button(
+                    onClick = {
+                        viewModel.save(
+                            onSaved = {
+                                snackbarHostState?.let { host ->
+                                    scope.launch { host.showSnackbar(savedMessage) }
+                                }
+                                onDismiss()
+                            },
+                            onContinue = if (continueMode) {
+                                {
+                                    scope.launch {
+                                        localSnackbarHostState.showSnackbar(continueSavedMessage)
+                                    }
+                                }
+                            } else {
+                                null
+                            },
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.Outlined.Check, contentDescription = null)
+                    Text(
+                        text = " " + stringResource(R.string.add_done),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                }
+                FilterChip(
+                    selected = continueMode,
+                    onClick = { continueMode = !continueMode },
+                    label = { Text(stringResource(R.string.add_continue_mode)) },
+                    modifier = Modifier.padding(start = 8.dp),
                 )
             }
 
@@ -384,6 +417,35 @@ fun AddTransactionSheet(
                 }
             },
         )
+    }
+}
+
+/**
+ * 常用備註 chips：FlowRow 自動換行、本身不捲動，符合單一捲動容器鐵律；
+ * 點擊直接帶入備註欄。
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RecentNotesChips(
+    notes: List<String>,
+    onSelect: (String) -> Unit,
+) {
+    Column {
+        Text(
+            text = stringResource(R.string.add_recent_notes),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            notes.forEach { note ->
+                AssistChip(
+                    onClick = { onSelect(note) },
+                    label = { Text(note) },
+                )
+            }
+        }
     }
 }
 

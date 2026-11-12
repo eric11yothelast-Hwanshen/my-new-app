@@ -165,6 +165,9 @@
     <string name="add_discard_title">放棄這筆記錄？</string>
     <string name="add_discard_confirm">已輸入的內容將不會儲存，確定要放棄嗎？</string>
     <string name="add_discard_yes">放棄</string>
+    <string name="add_recent_notes">常用備註</string>
+    <string name="add_continue_mode">連記</string>
+    <string name="add_continue_saved">已儲存，再記一筆</string>
 
     <!-- 通知 -->
     <string name="notification_title">通知</string>

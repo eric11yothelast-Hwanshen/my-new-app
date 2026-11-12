@@ -19,6 +19,13 @@
 
 ## Session 紀錄
 
+- **Session 16（記帳頁常用備註快捷選填＋連記模式，已完成）**：只改 AddTransactionSheet.kt、AddTransactionViewModel.kt 與字串資源；捲動結構（外層不捲動＋中段 weight(1f) 可捲動＋鍵盤固定底部）與 CategoryGrid 完全未動，無 DB schema 變更。
+  - **常用備註 chips**：位置在備註欄下方、AI 載入列之後、標籤欄之前，位於既有捲動區內。新 private composable `RecentNotesChips`——FlowRow 自動換行、本身不捲動（垂直軸向仍只有中段一個捲動容器），AssistChip 點擊直接帶入備註欄（viewModel.setNote）；無資料時整列不顯示（不會有空列）。
+  - **chips 資料來源決策**：擇 ViewModel 記憶體去重——AddTransactionViewModel 新增 `recentNotes: StateFlow<List<String>>`，由既有 `transactionRepository.observeTransactions()` map→去空→distinct→take(5)（DAO 本身 ORDER BY dateEpochMillis DESC，新到舊）。不新增 DAO 查詢、不動 Room schema，也無需補 DAO 測試；chips 更新隨 repository flow 即時反映（延遲一拍可接受）。
+  - **連記模式決策**：擇「完成 ✓」鈕旁小 toggle（FilterChip「連記」），而非 Snackbar action——儲存成功後 Sheet 會關閉，Snackbar action 需處理重新開啟的時序；toggle 於 Sheet 開啟期間直接續記較單純可靠。開關開啟時送出成功不關 Sheet：ViewModel.save() 新增可選參數 `onContinue`，成功時改呼叫新方法 `resetForNext()`——保留帳戶、分類與類型，清空金額、手續費、備註、標籤，日期時間重設為現在，並以 Sheet 內 Snackbar 顯示「已儲存，再記一筆」；關閉時沿用原流程（父層「已儲存」＋關閉 Sheet）。既有 23 個單元測試未覆蓋此 ViewModel，save() 以預設參數擴充不影響既有呼叫。
+  - **字串資源**：新增 add_recent_notes「常用備註」、add_continue_mode「連記」、add_continue_saved「已儲存，再記一筆」。
+  - **驗證方式**：沙箱無 JDK/Android SDK（與先前 session 相同），括號平衡與 XML 合法性已以 Python 檢查；lint＋單元測試＋雙 APK 簽署由 GitHub Actions 執行，Release 頁可下載。
+
 - **Session 15（全 App 過場動畫與操作回饋補強，已完成）**：只碰 UI 回饋層，AddTransactionSheet 捲動結構與資料層完全未動。
   - **分頁切換轠場**：NavHost 進齣轠場由 spring 滑動＋fade 改為純淡入淡出（fadeIn 220ms／fadeOut 180ms tween，前進與返回皆同）——五分頁切換一致、不閃白；containerColor 為 background，fade 過程不露白。附屬頁面（精靈、AI）同套轠場。
   - **Toast 全面改 Snackbar**：(1) 記帳儲存成功——AddTransactionSheet 新增可選參數 snackbarHostState（父層傳入），onSaved 經父層 SnackbarHost 顯示「已儲存」後才關閉 Sheet；Overview／Transactions 兩個入口各加 SnackbarHost（BottomCenter、bottom 88dp 避開 FAB）；Sheet 內部回饋（驗證失敗、AI 建議）仍用 Sheet 自己的 localSnackbarHostState，兩者分離避免遮蔽。(2) 明細頁 AI 篩選套用——Toast 改 Snackbar（字串組合期解析）。(3) 明細頁刪除成功——新增「已刪除這筆記錄」Snackbar。

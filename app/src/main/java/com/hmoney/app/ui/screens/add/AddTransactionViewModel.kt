@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -139,6 +140,20 @@ class AddTransactionViewModel @Inject constructor(
         form.value = FormState()
     }
 
+    /** 連記模式：保留帳戶與分類，清空金額、手續費、備註與標籤，日期時間重設為現在 */
+    fun resetForNext() = form.update { f ->
+        f.copy(
+            editingId = null,
+            amountText = "",
+            feeText = "",
+            note = "",
+            tagsText = "",
+            errorRes = null,
+            date = LocalDate.now(),
+            time = LocalTime.now(),
+        )
+    }
+
     fun setType(type: TransactionType) = form.update { it.copy(type = type, categoryId = null) }
 
     fun onKeypadInput(digit: Char) = form.update { f ->
@@ -174,8 +189,8 @@ class AddTransactionViewModel @Inject constructor(
 
     fun setTags(tags: String) = form.update { it.copy(tagsText = tags) }
 
-    /** 儲存：驗證失敗回傳錯誤字串資源，成功回傳 null 並關閉表單 */
-    fun save(onSaved: () -> Unit) {
+    /** 儲存：驗證失敗回傳錯誤字串資源，成功回傳 null 並關閉表單；onContinue 非 null 時為連記模式 */
+    fun save(onSaved: () -> Unit, onContinue: (() -> Unit)? = null) {
         val f = form.value
         val amountCents = AmountParser.toCents(f.amountText)
         when {
@@ -216,8 +231,13 @@ class AddTransactionViewModel @Inject constructor(
                         } else {
                             transactionRepository.updateTransaction(transaction)
                         }
-                        reset()
-                        onSaved()
+                        if (onContinue != null) {
+                            resetForNext()
+                            onContinue()
+                        } else {
+                            reset()
+                            onSaved()
+                        }
                     } catch (e: IllegalArgumentException) {
                         form.update { it.copy(errorRes = R.string.add_error_generic) }
                     }
@@ -298,7 +318,21 @@ class AddTransactionViewModel @Inject constructor(
         aiState.value = AiState.Done
     }
 
+    /** 常用備註：從既有交易備註做記憶體去重（新到舊），不新增 DAO 查詢與資料表欄位 */
+    val recentNotes: StateFlow<List<String>> = transactionRepository.observeTransactions()
+        .map { transactions ->
+            transactions.mapNotNull { tx -> tx.note.trim().takeIf(String::isNotEmpty) }
+                .distinct()
+                .take(RECENT_NOTE_LIMIT)
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = emptyList(),
+        )
+
     private companion object {
         private const val TAG = "AddTransactionVM"
+        private const val RECENT_NOTE_LIMIT = 5
     }
 }
