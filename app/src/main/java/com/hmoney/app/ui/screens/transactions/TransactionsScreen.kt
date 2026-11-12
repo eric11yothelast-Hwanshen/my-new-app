@@ -358,8 +358,8 @@ fun TransactionsScreen(
                         SwipeToDismissBox(
                             state = dismissState,
                             // 僅左滑（EndToStart）可滑出動作：右滑不觸發任何動作、未達門檻放開自動回彈
-                            enableStartToEnd = false,
-                            enableEndToStart = true,
+                            enableDismissFromStartToEnd = false,
+                            enableDismissFromEndToStart = true,
                             backgroundContent = {
                                 // 左滑到位後停住的動作區：點空白處回彈；按鈕沿用既有編輯／刪除流程
                                 Row(
