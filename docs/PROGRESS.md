@@ -19,6 +19,10 @@
 
 ## Session 紀錄
 
+- **Session 35（versionName 1.2.0 收尾：體驗優化里程碑完成，已完成）**：1.1.0 的體驗優化里程碑全部驗收完成——UI/UX 十項改進＋AI 對話升級（reasoning_effort／區塊去重／全文去重）＋Session 34 重複顯示修復（MarkdownText 渲染層根因），依里程碑收尾慣例將 versionName 1.1.0 → 1.2.0。
+  - **改動（僅版本字串）**：app/build.gradle.kts versionName "1.1.0" → "1.2.0"；versionCode 維持 GITHUB_RUN_NUMBER 覆寫邏輯不動。
+  - **全庫排查 "1.1.0"**：docs/research.md 與 gradle/libs.versions.toml 的 1.1.0 是 androidx.security:security-crypto 函式庫版本，與 App 版本無關，未動；PROGRESS.md Session 18 為歷史紀錄保留；SPEC.md／README 未列 App 版本號，無需更新。
+  - **驗收**：GitHub Actions 全綠，Release tag v1.2.0-<流水號>，雙 APK 可從 Release 頁下載。
 - **Session 34（AI 回覆「整段／開頭句重複」最終根因修復：MarkdownText 渲染迴圈 Plain 段雙重 append，已完成）**：多輪追查（Session 31–33 皆往模型端／內容層修）後，於渲染層查實真兇——MarkdownText.kt 的 segment 渲染迴圈中，when 的 MdSegment.Plain 分支內先 append(segment.text) 一次，迴圈下方又無條件 append(segment.text) 一次，每個純文字段落因此顯示兩次；DB 原文僅一份，模型端與 parseMarkdown 解析層皆正常。
   - **修復（僅改 MarkdownText.kt 與 MarkdownParserTest.kt）**：when 的 Plain 分支改為 Unit（不做事），保留迴圈下方統一的 append(segment.text)——每個 segment 恰好 append 一次；Bold／Italic／Code 分支只 pushStyle、靠下方 append，行為完全不變。parseMarkdown 一字未動。
   - **可測性重構**：單行 → AnnotatedString 的組字邏輯抽成 internal 純函式 buildMdAnnotatedString(line, codeBackground, codeForeground)，MarkdownText composable 改呼叫它（remember 快取照舊）。
