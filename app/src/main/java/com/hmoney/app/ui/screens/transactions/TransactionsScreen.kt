@@ -443,7 +443,7 @@ fun TransactionsScreen(
 
     // 篩選集中選擇 bottom sheet：沿用既有 FilterChip 元件，只換容器；ViewModel 篩選邏輯完全不動
     if (showFilterSheet) {
-        val filterSheetState = rememberModalBottomSheetState(skipHalfExpanded = true)
+        val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         ModalBottomSheet(
             onDismissRequest = { showFilterSheet = false },
             sheetState = filterSheetState,

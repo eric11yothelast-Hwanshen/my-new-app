@@ -7,6 +7,8 @@ import com.hmoney.app.data.db.entity.ChatSessionEntity
 import com.hmoney.app.domain.model.ChatMessage
 import com.hmoney.app.domain.model.ChatSession
 import com.hmoney.app.domain.repository.ChatRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -77,10 +79,10 @@ class ChatRepositoryImpl @Inject constructor(
         sessionDao.deleteOlderThan(cutoffEpochMillis)
 
     private fun Flow<List<ChatSessionEntity>>.mapSessions(): Flow<List<ChatSession>> =
-        kotlinx.coroutines.flow.map { list -> list.map { it.toDomain() } }
+        map { list -> list.map { it.toDomain() } }
 
     private fun Flow<List<ChatMessageEntity>>.mapMessages(): Flow<List<ChatMessage>> =
-        kotlinx.coroutines.flow.map { list -> list.map { it.toDomain() } }
+        map { list -> list.map { it.toDomain() } }
 
     private fun ChatSessionEntity.toDomain(): ChatSession = ChatSession(
         id = id,

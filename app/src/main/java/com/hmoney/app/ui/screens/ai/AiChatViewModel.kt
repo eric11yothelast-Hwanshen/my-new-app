@@ -72,16 +72,22 @@ class AiChatViewModel @Inject constructor(
         if (q.isBlank() || _uiState.value.loading) return
         val settings = _uiState.value.settings
         val now = System.currentTimeMillis()
-        if (settings.keepHistory) {
-            val sessionId = activeSessionId
-            if (sessionId <= 0L) return
-            chatRepository.addMessage(sessionId, isUser = true, text = q, nowEpochMillis = now)
-        } else {
-            appendEphemeral(isUser = true, text = q)
-        }
         _uiState.update { it.copy(loading = true, error = null) }
         job = viewModelScope.launch {
             try {
+                if (settings.keepHistory) {
+                    val sessionId = activeSessionId
+                    if (sessionId > 0L) {
+                        chatRepository.addMessage(
+                            sessionId,
+                            isUser = true,
+                            text = q,
+                            nowEpochMillis = now,
+                        )
+                    }
+                } else {
+                    appendEphemeral(isUser = true, text = q)
+                }
                 when (val result = aiRepository.chat(q, settings.includeFinanceContext)) {
                     is AiTextResult.Success -> {
                         if (settings.keepHistory) {

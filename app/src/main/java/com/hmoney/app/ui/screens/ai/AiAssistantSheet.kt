@@ -94,7 +94,8 @@ fun AiAssistantSheet(
     val untitled = stringResource(R.string.ai_chat_untitled)
 
     // 開啟即全開：訊息列表 weight(1f) 填滿 sheet 剩餘高度，輸入列永遠可見
-    val sheetState = rememberModalBottomSheetState(skipHalfExpanded = true)
+    // 開啟即全開（skipPartiallyExpanded）：訊息列表 weight(1f) 填滿 sheet 剩餘高度，輸入列永遠可見
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -191,11 +192,12 @@ fun AiAssistantSheet(
             if (state.settings.showQuickPrompts) {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(QUICK_PROMPTS) { res ->
+                        val label = stringResource(res)
                         AssistChip(
-                            onClick = { input = stringResource(res) },
+                            onClick = { input = label },
                             label = {
                                 Text(
-                                    text = stringResource(res),
+                                    text = label,
                                     maxLines = 1,
                                 )
                             },
