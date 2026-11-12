@@ -19,6 +19,9 @@
 
 ## Session 紀錄
 
+- **Session 19（帳戶頁卡片視覺升級＋顏色與圖示自訂，已完成）**：AccountsScreen 帳戶卡片以帳戶色主題化——卡片內 Row 最左側加 4dp 圓角色條（填 Color(account.colorArgb)），卡片外層以 Box 疊上帳戶色 12% 透明度圓角染色（RoundedCornerShape(24.dp)，不攔截點擊，點擊仍由 GlassCard 處理）；餘額字級 titleMedium → titleLarge，帳戶名 titleMedium → bodyMedium（次要層級），貨幣標籤不變。新增／編輯帳戶對話框色票由寫死在 AccountsScreen 的 6 色改為 ui/theme/AccountPalette.kt 共用常數檔的 10 色（Material 400/600 色階，深淺色皆可讀）；DB schema 未動（colorArgb/iconKey 為既有欄位）。IconMapper.accountIconKeys 新增「smartphone」（手機支付）與「trending_up」（股票）兩個 iconKey，帳戶可挑選圖示由 5 個增至 7 個。明細／總覽頁顯示帳戶圖示與顏色處經 Color(account.colorArgb) 自動跟隨，未另外修改。
+  - **驗證方式**：沙箱無 JDK/Android SDK，括號平衡以 Python 檢查；lint＋單元測試＋雙 APK 由 GitHub Actions 執行。
+
 - **Session 18（明細滑動 bug 修復＋滾動自動隱藏 FAB＋版本 1.1.0，已完成）**：新增 ui/components/SwipeToRevealRow.kt 與 ui/components/AutoHideFab.kt；修改 TransactionsScreen、OverviewScreen、StatsScreen、AccountsScreen 與 app/build.gradle.kts（versionName 1.0.0 → 1.1.0，versionCode 維持 GITHUB_RUN_NUMBER 不動）。AddTransactionSheet 捲動結構與 CategoryGrid 未動。
   - **Bug 1 根因與修復**：舊做法 SwipeToDismissBox 未設攔截時，滑過門檻會停在 Dismissed 錨點（＝整列寬），前景整列滑出畫面消失；且前景 Row 內殘留 Session 6 前的常駐編輯／刪除按鈕與背景重疊。修復：移除前景常駐按鈕，捨棄 SwipeToDismissBox，改自製 `SwipeToRevealRow`（ui/components/，可重用）。
   - **SwipeToRevealRow 錨點設計（請勿誤改）**：`AnchoredDraggableState<RevealValue>`（foundation 1.9 新簽名：建構只吃 initialValue，錨點用 `updateAnchors` 於 SideEffect 注入，動畫用 `animateTo`——勿用舊的 positionalThreshold／velocityThreshold 建構參數，該組態已移到 Modifier 且舊欄位為 deprecated lateinit）。兩錨點：Settled = 0f、Revealed = -160dp（兩顆 48dp 動作鈕＋12dp 間距＋左右 16dp 邊距）；水平手勢（Orientation.Horizontal）與垂直 LazyColumn 捲動不衝突。滑到 Revealed 停住不消失；點內容區或列表空白處回彈；動作需明確點按鈕，快慢滑皆不誤觸。前景內容加 `colorScheme.surface` 底色（列原本透明，否則動作鈕會從底下透出）。
