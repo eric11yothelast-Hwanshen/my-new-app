@@ -19,6 +19,13 @@
 
 ## Session 紀錄
 
+- **Session 31（AI 回覆洩漏 thinking 區塊與原始 JSON 修復，已完成）**：mistral-medium-latest／mistral-large-latest 回傳的 choices[0].message.content 可能是「內容區塊陣列」或「內容區塊物件」而非純字串，原 extractContent() 只以純字串處理，拿到區塊結構時整包洩漏到 UI。修復（延續 Session 10「解析 choices[0].message.content」決策的相容性擴充，只改 AiRepositoryImpl.kt）：
+  - **三種 content 形態支援**：a. 純字串 → 直接使用（Session 10 既有行為保留）；b. JSON 陣列 → 只串接 type == "text" 區塊的 text 欄位；c. JSON 物件 → 只取 text 欄位。thinking 區塊一律丟棄，絕不顯示。
+  - **防禦性清理**：取出正文後，殘留「{"type":」開頭的可疑 JSON 片段——能解析就抽 text，無法解析則移除該片段；整段為雙重編碼的內容區塊陣列字串（「[」開頭且可解析為 JSONArray）也會結構化抽出正文。只處理「[」開頭的整段字串，不碰「{」開頭者——AI 篩選／分類建議本來就回傳 JSON 物件，不可誤傷。
+  - **單元測試**：新增 AiContentExtractTest（app/src/test/.../data/repository/），涵蓋純字串／thinking+text 陣列／物件形態、雙重編碼陣列、純字串殘留 JSON 片段抽取、thinking 專屬陣列回 null、無法解析回 null。
+  - **測試依賴**：app/build.gradle.kts 加 `testImplementation(libs.org.json)`（org.json:json 20240303，version catalog 新增 orgJson = "20240303"）——僅測試 classpath，JVM 單元測試需要真實 org.json 實作（android.jar stub 會擋）；App 執行期仍用平台內建，零新執行期依賴。
+  - **驗證方式**：沙箱無 JDK/Android SDK，lint（Error 擋建置）＋單元測試＋雙 APK 簽署由 GitHub Actions 執行；實機驗收＝mistral-large-latest 與 mistral-medium-latest 各測一次，回覆只顯示正文、無 JSON 片段、無內部思考文字。
+
 - **Session 30（AI 回覆片語重複修復：取樣懲罰參數＋400 相容性重試，已完成）**：修復實機 AI 回覆出現片語層級重複（例：「建議確認是否有未記錄的交易。建議確認是否有未記錄的交易。」）。App 端 chat()→callRaw()→extractContent()→MarkdownText 渲染鏈逐層檢查無重複拼接邏輯，重複來源為模型輸出本身退化；原 request() 請求 body 只有 model / messages / temperature(0.4)，無任何重複懲罰參數。
   - **懲罰參數（請勿誤改）**：AiRepositoryImpl.request() 的 body 新增 `frequency_penalty: 0.3`、`presence_penalty: 0.2`、`max_tokens: 1024`（對話與分析類呼叫一律生效，含 analyzeWeek 的 execute() 路徑，JSON 輸出解析不受影響）。**勿調高或移除**——0.3/0.2 為抑制片語重複又不傷正常內容的保守值；max_tokens 1024 對本 App 回覆長度已足夠，過長回覆本來也無必要。
   - **400 相容性重試（請勿誤改）**：部分 OpenAI 相容端點對不支援的參數會回 400。request() 收到 400 時，移除 frequency_penalty / presence_penalty / max_tokens 後**只重試一次（不迴圈）**，重試再失敗才回 AiError.Http(400)。勿改成無限重試或對其他狀態碼也重試——401/403/429 的既有錯誤分流不受影響。

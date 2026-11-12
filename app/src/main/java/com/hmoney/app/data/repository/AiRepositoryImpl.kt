@@ -368,15 +368,12 @@ class AiRepositoryImpl @Inject constructor(
         }
     }
 
-    /** 從 API 原始回應 JSON 取出 choices[0].message.content */
-    private fun extractContent(raw: String): String? = runCatching {
-        JSONObject(raw)
-            .getJSONArray("choices")
-            .getJSONObject(0)
-            .getJSONObject("message")
-            .getString("content")
-            .trim()
-    }.getOrNull()
+    /**
+     * 從 API 原始回應 JSON 取出 choices[0].message.content。
+     * Session 31 起解析邏輯抽至檔案尾端 extractAiContent()（支援三種 content 形態），
+     * 延續 Session 10「解析 choices[0].message.content」的既有決策，僅相容性擴充。
+     */
+    private fun extractContent(raw: String): String? = extractAiContent(raw)
 
     /**
      * 共用 HTTP 請求：回傳模型回覆內容（String）或 AiError。
@@ -536,3 +533,95 @@ class AiRepositoryImpl @Inject constructor(
 /** AI 呼叫失敗的包裝例外（供 Result 回傳用；非 coroutine 取消） */
 class AiCallException(val error: com.hmoney.app.domain.model.AiError) :
     Exception(error.toString())
+
+/**
+ * 從 API 原始回應 JSON 取出正文。
+ * Session 31 決策（請勿誤改）：mistral-medium-latest／mistral-large-latest 會輸出
+ * thinking 區塊，choices[0].message.content 可能是三種形態：
+ * a. 純字串 → 直接使用（Session 10 既有行為，保留）
+ * b. JSON 陣列 → 只串接 type == "text" 區塊的 text 欄位；type == "thinking" 一律丟棄
+ * c. JSON 物件 → 只取 text 欄位，thinking 一律丟棄
+ * 取出正文後防禦性清理：殘留 {"type": 開頭的 JSON 片段，能解析就抽 text，
+ * 無法解析則移除該片段——絕不讓 JSON 或內部思考洩漏到 UI。
+ * 延續 Session 10 extractContent 決策的相容性擴充，勿改回純字串處理。
+ */
+internal fun extractAiContent(raw: String): String? = runCatching {
+    val content = JSONObject(raw)
+        .getJSONArray("choices")
+        .getJSONObject(0)
+        .getJSONObject("message")
+        .get("content")
+    when (content) {
+        is String -> sanitizeAiText(content).ifBlank { null }
+        is JSONArray -> {
+            val text = StringBuilder().apply {
+                for (i in 0 until content.length()) {
+                    val block = content.optJSONObject(i) ?: continue
+                    if (block.optString("type") == "text") append(block.optString("text"))
+                }
+            }.toString()
+            sanitizeAiText(text).ifBlank { null }
+        }
+        is JSONObject -> sanitizeAiText(content.optString("text")).ifBlank { null }
+        else -> null
+    }
+}.getOrNull()
+
+private val aiJsonFragmentRegex = Regex("\\{\\s*\"type\"\\s*:")
+
+/** 從 start 起比對出完整平衡的 JSON 物件字串（尊重字串內的括號與跳脫） */
+private fun extractBalancedJsonObject(text: String, start: Int): String? {
+    if (text[start] != '{') return null
+    var depth = 0
+    var inString = false
+    var escaped = false
+    for (i in start until text.length) {
+        when {
+            inString -> when {
+                escaped -> escaped = false
+                text[i] == '\\' -> escaped = true
+                text[i] == '"' -> inString = false
+            }
+            text[i] == '"' -> inString = true
+            text[i] == '{' -> depth++
+            text[i] == '}' -> {
+                depth--
+                if (depth == 0) return text.substring(start, i + 1)
+            }
+        }
+    }
+    return null
+}
+
+/**
+ * 防禦性清理：整段為內容區塊陣列字串（雙重編碼）時結構化抽 text；
+ * 其餘移除或抽換殘留的 {"type": JSON 片段，thinking／無法解析者一律丟棄。
+ * 只處理「[」開頭的整段陣列，不碰「{」開頭的字串——AI 篩選／分類建議本來就回傳 JSON 物件，不可誤傷。
+ */
+private fun sanitizeAiText(text: String, depth: Int = 0): String {
+    var result = text.trim()
+    if (depth < 3 && result.startsWith("[")) {
+        val arr = runCatching { JSONArray(result) }.getOrNull()
+        if (arr != null) {
+            val sb = StringBuilder()
+            for (i in 0 until arr.length()) {
+                val block = arr.optJSONObject(i) ?: continue
+                if (block.optString("type") == "text") sb.append(block.optString("text"))
+            }
+            return sanitizeAiText(sb.toString(), depth + 1)
+        }
+    }
+    var guard = 0
+    while (guard++ < 10) {
+        val match = aiJsonFragmentRegex.find(result) ?: break
+        val start = match.range.first
+        val json = extractBalancedJsonObject(result, start)
+        result = if (json != null) {
+            val inner = runCatching { JSONObject(json).optString("text") }.getOrNull()
+            result.substring(0, start) + inner.orEmpty() + result.substring(start + json.length)
+        } else {
+            result.substring(0, start)
+        }
+    }
+    return result.trim()
+}

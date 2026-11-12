@@ -151,4 +151,6 @@ dependencies {
     // 單元測試
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // org.json 參考實作（JVM 測試用；App 執行期用平台內建，零新執行期依賴）
+    testImplementation(libs.org.json)
 }
