@@ -19,6 +19,12 @@
 
 ## Session 紀錄
 
+- **Session 36（設定頁尾端版本資訊：versionName + versionCode，已完成）**：曾發生「使用者拿舊 APK 實測、誤判修復失敗」的事故——在設定頁清單最尾端（備份與還原 section 之後，不新開 section）加一個不可點擊的小字版本資訊「幻帳 1.2.0 (build <流水號>)」，實測時可直接對照 build 版本。
+  - **版本取得**：context.packageManager.getPackageInfo(context.packageName, 0)，versionName ＋ versionCode，VersionFooter composable 內 remember 取一次；versionCode 以 Build.VERSION_CODES.P 分界取 longVersionCode／versionCode（minSdk 26 相容）。
+  - **樣式**：bodySmall＋onSurfaceVariant（colorScheme 取用）＋置中＋上下 8dp padding；不可點擊、無互動。
+  - **字串資源**：settings_version_footer「幻帳 %1$s (build %2$d)」（values/strings.xml，繁中預設），無 hardcode 字串與色碼。
+  - **請勿誤改**：versionCode 即 GITHUB_RUN_NUMBER build 流水號，勿改為固定值。
+  - **驗證方式**：沙箱無 JDK/Android SDK（與先前 session 相同），單元測試＋lint＋雙 APK 簽署由 GitHub Actions 執行。
 - **Session 35（versionName 1.2.0 收尾：體驗優化里程碑完成，已完成）**：1.1.0 的體驗優化里程碑全部驗收完成——UI/UX 十項改進＋AI 對話升級（reasoning_effort／區塊去重／全文去重）＋Session 34 重複顯示修復（MarkdownText 渲染層根因），依里程碑收尾慣例將 versionName 1.1.0 → 1.2.0。
   - **改動（僅版本字串）**：app/build.gradle.kts versionName "1.1.0" → "1.2.0"；versionCode 維持 GITHUB_RUN_NUMBER 覆寫邏輯不動。
   - **全庫排查 "1.1.0"**：docs/research.md 與 gradle/libs.versions.toml 的 1.1.0 是 androidx.security:security-crypto 函式庫版本，與 App 版本無關，未動；PROGRESS.md Session 18 為歷史紀錄保留；SPEC.md／README 未列 App 版本號，無需更新。

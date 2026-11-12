@@ -335,4 +335,6 @@
     <string name="transactions_filter_sheet_title">篩選條件</string>
     <string name="transactions_filter_applied">已套用篩選</string>
     <string name="transactions_filter_clear_all">清除全部篩選</string>
+    <!-- 設定頁版本資訊：versionCode 即 CI GITHUB_RUN_NUMBER build 流水號，請勿改為固定值 -->
+    <string name="settings_version_footer">帷帳 %1$s (build %2$d)</string>
 </resources>
