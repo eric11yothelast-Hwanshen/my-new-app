@@ -98,6 +98,7 @@ class AiRepositoryImpl @Inject constructor(
             return callRaw(
                 systemPrompt = systemPrompt,
                 userPrompt = "使用者問題：$question",
+                reasoningEffort = "none",
             )
         }
         val zone = ZoneId.systemDefault()
@@ -108,6 +109,7 @@ class AiRepositoryImpl @Inject constructor(
         return callRaw(
             systemPrompt = systemPrompt,
             userPrompt = "記帳資料（已精簡去敏感化）：\n$weekData\n$monthData\n$accountsData\n\n使用者問題：$question",
+            reasoningEffort = "none",
         )
     }
 
@@ -355,10 +357,14 @@ class AiRepositoryImpl @Inject constructor(
     }
 
     /** 通用文字呼叫：所有錯誤轉為 AiTextResult.Failure（不存歷史） */
-    private suspend fun callRaw(systemPrompt: String, userPrompt: String): AiTextResult {
+    private suspend fun callRaw(
+        systemPrompt: String,
+        userPrompt: String,
+        reasoningEffort: String? = null,
+    ): AiTextResult {
         val config = configStore.read()
         if (!config.isConfigured) return AiTextResult.Failure(AiError.NotConfigured)
-        return when (val raw = request(config, systemPrompt, userPrompt)) {
+        return when (val raw = request(config, systemPrompt, userPrompt, reasoningEffort)) {
             is String -> when (val text = extractContent(raw)) {
                 null -> AiTextResult.Failure(AiError.Parse)
                 else -> AiTextResult.Success(text)
@@ -377,19 +383,19 @@ class AiRepositoryImpl @Inject constructor(
 
     /**
      * 共用 HTTP 請求：回傳模型回覆內容（String）或 AiError。
-     * 片語重複防護：frequency_penalty／presence_penalty 抑制模型輸出重複，
-     * max_tokens 上限避免過長回覆；部分相容端點不支援這些參數會回 400，
-     * 此時移除三個參數後僅重試一次（不迴圈），再失敗才回 AiError.Http(400)。
-     * （請勿誤改：參數值與「400 只重試一次」機制是 AI 回覆重複的修復核心。）
+     * 對話類呼叫（chat()）帶 reasoningEffort="none" 關閉 thinking；
+     * 400 階梯：reasoning_effort="none" → "low" → 移除 sampling 參數的裸 body（最多兩層重試）。
+     * 分析類呼叫（reasoningEffort=null）維持原行為：帶 sampling 參數，400 時改裸 body 重試一次。
      */
     private suspend fun request(
         config: AiConfig,
         systemPrompt: String,
         userPrompt: String,
+        reasoningEffort: String? = null,
     ): Any {
         val endpoint = config.baseUrl.trimEnd('/') + "/chat/completions"
 
-        fun buildBody(withSamplingControls: Boolean): RequestBody = JSONObject().apply {
+        fun buildBody(effort: String?, withSampling: Boolean): RequestBody = JSONObject().apply {
             put("model", config.model)
             put(
                 "messages",
@@ -398,7 +404,8 @@ class AiRepositoryImpl @Inject constructor(
                     .put(JSONObject().put("role", "user").put("content", userPrompt)),
             )
             put("temperature", 0.4)
-            if (withSamplingControls) {
+            if (effort != null) put("reasoning_effort", effort)
+            if (withSampling) {
                 put("frequency_penalty", 0.3)
                 put("presence_penalty", 0.2)
                 put("max_tokens", 1024)
@@ -412,21 +419,27 @@ class AiRepositoryImpl @Inject constructor(
             else -> response.body()?.string() ?: AiError.Parse
         }
 
-        return try {
-            val response = aiApi.chat(
+        suspend fun send(effort: String?, withSampling: Boolean): Any = toResult(
+            aiApi.chat(
                 url = endpoint,
                 authorization = "Bearer ${config.apiKey}",
-                body = buildBody(true),
-            )
-            if (response.code() == 400) {
-                aiApi.chat(
-                    url = endpoint,
-                    authorization = "Bearer ${config.apiKey}",
-                    body = buildBody(false),
-                ).let(::toResult)
-            } else {
-                toResult(response)
+                body = buildBody(effort, withSampling),
+            ),
+        )
+
+        return try {
+            var result = send(reasoningEffort, withSampling = true)
+            if (result is AiError.Http && result.code == 400) {
+                result = if (reasoningEffort != null) {
+                    send("low", withSampling = true)
+                } else {
+                    send(null, withSampling = false)
+                }
+                if (result is AiError.Http && result.code == 400) {
+                    result = send(null, withSampling = false)
+                }
             }
+            result
         } catch (e: IOException) {
             AiError.Network
         } catch (e: HttpException) {
@@ -554,13 +567,13 @@ internal fun extractAiContent(raw: String): String? = runCatching {
     when (content) {
         is String -> sanitizeAiText(content).ifBlank { null }
         is JSONArray -> {
-            val text = StringBuilder().apply {
-                for (i in 0 until content.length()) {
-                    val block = content.optJSONObject(i) ?: continue
-                    if (block.optString("type") == "text") append(block.optString("text"))
-                }
-            }.toString()
-            sanitizeAiText(text).ifBlank { null }
+            var merged = ""
+            for (i in 0 until content.length()) {
+                val block = content.optJSONObject(i) ?: continue
+                if (block.optString("type") != "text") continue
+                merged = mergeBlocksWithOverlapDedup(merged, block.optString("text"))
+            }
+            sanitizeAiText(merged).ifBlank { null }
         }
         is JSONObject -> sanitizeAiText(content.optString("text")).ifBlank { null }
         else -> null
@@ -568,6 +581,21 @@ internal fun extractAiContent(raw: String): String? = runCatching {
 }.getOrNull()
 
 private val aiJsonFragmentRegex = Regex("\\{\\s*\"type\"\\s*:")
+
+/**
+ * 區塊層重疊去重（Session 32 決策，請勿誤改）：
+ * 後一個 text 區塊以先前已累積內容為開頭（先前內容是前綴或兩者相同）時，
+ * 丟棄較短者只保留最長；完全不重疊才正常串接。
+ * 只做區塊層去重，不做任意句子層去重——避免誤刪模型刻意的重複表述。
+ */
+private fun mergeBlocksWithOverlapDedup(existing: String, next: String): String = when {
+    next.isBlank() -> existing
+    existing.isBlank() -> next.trim()
+    next.trim() == existing.trim() -> existing
+    next.trim().startsWith(existing.trim()) -> next.trim()
+    existing.trim().startsWith(next.trim()) -> existing
+    else -> existing + next
+}
 
 /** 從 start 起比對出完整平衡的 JSON 物件字串（尊重字串內的括號與跳脫） */
 private fun extractBalancedJsonObject(text: String, start: Int): String? {

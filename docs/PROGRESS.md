@@ -19,6 +19,13 @@
 
 ## Session 紀錄
 
+- **Session 32（AI 回覆開頭句子重複治本：reasoning_effort 階梯＋text 區塊重疊去重，已完成）**：mistral-medium/large-latest 是推理模型，message.content 是「thinking 區塊＋text 區塊」清單；多個 text 區塊內容重疊（短區塊是長區塊的前綴）時，原串接邏輯造成回覆開頭同一句連續重複兩次。
+  - **reasoning_effort 階梯（請勿誤改）**：request() 新增 reasoningEffort 參數（預設 null 不帶參數）。對話類 chat() 兩條路徑（純聊天／附記帳資料）都帶 `reasoning_effort="none"`——medium/small 系列支援，content 直接變純字串、thinking 完全關閉、最乾淨。400 階梯（最多兩層重試）：none → "low" → 移除 sampling 參數的裸 body；再失敗才回 AiError.Http(400)。分析類呼叫（analyzeWeek／analyzeData 等，reasoningEffort=null）行為不變：帶 sampling 參數，400 時改裸 body 重試一次。
+  - **text 區塊重疊去重（請勿誤改）**：extractAiContent() 串接多個 text 區塊前，用 mergeBlocksWithOverlapDedup() 檢查——後一塊以已累積內容為開頭（或完全相同）時丟棄較短者只保留最長；這是區塊層去重，不做任意句子層去重，避免誤刪模型刻意的重複表述。
+  - **三形態解析與 sanitize 防禦全部保留**（Session 31 決策延續）；請求參數除 reasoning_effort 外未動，prompt 未動。
+  - **單元測試**：AiContentExtractTest 補三個 fixture——重疊 text 區塊去重保留最長、相同區塊只出現一次、reasoning_effort=none 純字串回應行為不變。
+  - **驗收**：mistral-medium-latest 與 mistral-large-latest 同一問題各問 3 次，回覆開頭不再出現連續重複句子，無 thinking 洩漏；大測試問題（如「我這個月花最多的是什麼？」）與閒聊問題都正常。
+
 - **Session 31（AI 回覆洩漏 thinking 區塊與原始 JSON 修復，已完成）**：mistral-medium-latest／mistral-large-latest 回傳的 choices[0].message.content 可能是「內容區塊陣列」或「內容區塊物件」而非純字串，原 extractContent() 只以純字串處理，拿到區塊結構時整包洩漏到 UI。修復（延續 Session 10「解析 choices[0].message.content」決策的相容性擴充，只改 AiRepositoryImpl.kt）：
   - **三種 content 形態支援**：a. 純字串 → 直接使用（Session 10 既有行為保留）；b. JSON 陣列 → 只串接 type == "text" 區塊的 text 欄位；c. JSON 物件 → 只取 text 欄位。thinking 區塊一律丟棄，絕不顯示。
   - **防禦性清理**：取出正文後，殘留「{"type":」開頭的可疑 JSON 片段——能解析就抽 text，無法解析則移除該片段；整段為雙重編碼的內容區塊陣列字串（「[」開頭且可解析為 JSONArray）也會結構化抽出正文。只處理「[」開頭的整段字串，不碰「{」開頭者——AI 篩選／分類建議本來就回傳 JSON 物件，不可誤傷。

@@ -61,6 +61,28 @@ class AiContentExtractTest {
     }
 
     @Test
+    fun `content 陣列含重疊 text 區塊時去重保留最長`() {
+        val raw = rawResponse(
+            """[{"type":"thinking","thinking":"內部思考"},{"type":"text","text":"我這個月總支出"},{"type":"text","text":"我這個月總支出 1,000 元。"}]""",
+        )
+        assertEquals("我這個月總支出 1,000 元。", extractAiContent(raw))
+    }
+
+    @Test
+    fun `content 陣列兩個完全相同的 text 區塊只出現一次`() {
+        val raw = rawResponse(
+            """[{"type":"text","text":"建議控制外食頻率。"},{"type":"text","text":"建議控制外食頻率。"}]""",
+        )
+        assertEquals("建議控制外食頻率。", extractAiContent(raw))
+    }
+
+    @Test
+    fun `reasoning_effort none 的純字串回應行為不變`() {
+        val raw = rawResponse("\"reasoning_effort=none 時 content 就是純字串。\"")
+        assertEquals("reasoning_effort=none 時 content 就是純字串。", extractAiContent(raw))
+    }
+
+    @Test
     fun `只有 thinking 區塊時回 null 交由上層顯示解析錯誤`() {
         val raw = rawResponse("""[{"type":"thinking","thinking":"內部思考"}]""")
         assertNull(extractAiContent(raw))
