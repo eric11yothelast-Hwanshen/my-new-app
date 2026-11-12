@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
@@ -67,7 +68,7 @@ class AiChatViewModelTest {
         val sessionId = settingsRepo.aiSettings.value.currentSessionId
         assertTrue(sessionId > 0)
         assertEquals(sessionId, vm.uiState.value.currentSessionId)
-        val session = chatRepo.getSession(sessionId)
+        val session = runBlocking { chatRepo.getSession(sessionId) }
         assertEquals(ChatTitle.from("這個月花最多的是什麼？"), session?.title)
         assertEquals(2, vm.uiState.value.messages.size)
     }
@@ -78,7 +79,7 @@ class AiChatViewModelTest {
         settingsRepo.aiSettings.update { it.copy(currentSessionId = chatRepo.seedId) }
         val vm = createViewModel()
         vm.send("新的問題內容")
-        assertEquals("既有標題", chatRepo.getSession(chatRepo.seedId)?.title)
+        assertEquals("既有標題", runBlocking { chatRepo.getSession(chatRepo.seedId) }?.title)
     }
 
     @Test
@@ -277,6 +278,7 @@ private class FakeAiRepository : AiRepository {
     ) = throw UnsupportedOperationException()
     override suspend fun analyzeData(title: String, data: String) =
         throw UnsupportedOperationException()
-    override fun observeHistory() = emptyFlow<com.hmoney.app.domain.model.AiAnalysis>()
+    override fun observeHistory() =
+        emptyFlow<List<com.hmoney.app.domain.model.AiAnalysis>>()
     override suspend fun deleteHistory(id: Long) = Unit
 }
