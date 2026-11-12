@@ -1,3 +1,8 @@
+/**
+ * 【勿改警示】Markdown 渲染管線（parseMarkdown → buildMdAnnotatedString → MarkdownText）：
+ * 渲染時每個 segment 恰好 append 一次——when 分支只負責 pushStyle，
+ * 不得在分支內 append（Session 34 修正的重複渲染根因，請勿誤改回）。
+ */
 package com.hmoney.app.ui.components
 
 import androidx.compose.foundation.layout.Column
@@ -176,9 +181,57 @@ private fun parseInline(text: String): List<MdSegment> {
 }
 
 /**
+ * 單行→ AnnotatedString 的組字純函式（不碰 Compose 狀態，可單元測試）。
+ * 【勿改警示】每個 segment 恰好 append 一次——when 分支只負責 pushStyle，
+ * 不得在分支內 append（Session 34 修正的重複渲染根因，請勿誤改回）。
+ */
+internal fun buildMdAnnotatedString(
+    line: MdLine,
+    codeBackground: Color,
+    codeForeground: Color,
+): AnnotatedString = buildAnnotatedString {
+    if (line.bullet) append("•  ")
+    if (line.orderedNumber != null) {
+        pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+        append("${line.orderedNumber}. ")
+        pop()
+    }
+    if (line.headingLevel > 0) {
+        pushStyle(
+            SpanStyle(
+                fontWeight = FontWeight.Bold,
+                fontSize = when (line.headingLevel) {
+                    1 -> 20.sp
+                    2 -> 18.sp
+                    else -> 16.sp
+                },
+            ),
+        )
+    }
+    line.segments.forEach { segment ->
+        when (segment) {
+            is MdSegment.Plain -> Unit
+            is MdSegment.Bold -> pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+            is MdSegment.Italic -> pushStyle(SpanStyle(fontStyle = FontStyle.Italic))
+            is MdSegment.Code -> pushStyle(
+                SpanStyle(
+                    fontFamily = FontFamily.Monospace,
+                    background = codeBackground,
+                    color = codeForeground,
+                ),
+            )
+        }
+        append(segment.text)
+        if (segment !is MdSegment.Plain) pop()
+    }
+    if (line.headingLevel > 0) pop()
+}
+
+/**
  * AI 回覆文字渲染：支援 **粗體**、*斜體*、`行內程式碼`、無序／有序清單、分隔線與分級標題。
  * 請勿誤改：顏色一律從 colorScheme 取用（Code 底色 surfaceVariant、字色 onSurfaceVariant），
  * 不得 hardcode 色碼；呼叫端可透過 style / color 覆蓋基本樣式。
+ * 組字邏輯在 buildMdAnnotatedString（見檔頭勿改警示）。
  */
 @Composable
 fun MarkdownText(
@@ -197,43 +250,8 @@ fun MarkdownText(
             } else {
                 Text(
                     text = remember(line, codeBackground, codeForeground) {
-                        buildAnnotatedString {
-                            if (line.bullet) append("•  ")
-                            if (line.orderedNumber != null) {
-                                pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                                append("${line.orderedNumber}. ")
-                                pop()
-                            }
-                            if (line.headingLevel > 0) {
-                                pushStyle(
-                                    SpanStyle(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = when (line.headingLevel) {
-                                            1 -> 20.sp
-                                            2 -> 18.sp
-                                            else -> 16.sp
-                                        },
-                                    ),
-                                )
-                            }
-                            line.segments.forEach { segment ->
-                                when (segment) {
-                                    is MdSegment.Plain -> append(segment.text)
-                                    is MdSegment.Bold -> pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
-                                    is MdSegment.Italic -> pushStyle(SpanStyle(fontStyle = FontStyle.Italic))
-                                    is MdSegment.Code -> pushStyle(
-                                        SpanStyle(
-                                            fontFamily = FontFamily.Monospace,
-                                            background = codeBackground,
-                                            color = codeForeground,
-                                        ),
-                                    )
-                                }
-                                append(segment.text)
-                                if (segment !is MdSegment.Plain) pop()
-                            }
-                            if (line.headingLevel > 0) pop()
-                        }
+                        buildMdAnnotatedString(line, codeBackground, codeForeground)
+                    }
                     },
                     style = style,
                     color = color,
