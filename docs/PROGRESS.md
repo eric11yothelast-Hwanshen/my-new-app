@@ -19,6 +19,18 @@
 
 ## Session 紀錄
 
+- **Session 28（任務 B：AI 對話持久化＋跨頁同步＋對話管理＋設定開關；任務 A：總覽／明細／統計三頁重排，已完成）**：DB v3→v4 遷移、AiChatViewModel 改 DB flow 驅動、AiAssistantSheet 全開修復與對話管理 UI、設定頁四開關、三頁空間利用率重排。
+  - **B0（首次開啟即全開，請勿誤改）**：AiAssistantSheet 的 ModalBottomSheet 改傳 `sheetState = rememberModalBottomSheetState(skipHalfExpanded = true)`——M3 預設半開會讓輸入列落在裁切範圍外。**勿移除此 sheetState 設定**；既有 weight(1f)＋imePadding＋navigationBarsPadding 鍵盤行為全部保留（Session 26/27 的修復零回歸）。
+  - **B1（DB v4 schema）**：新增 `chat_sessions`（id/title/createdAtEpochMillis/updatedAtEpochMillis）與 `chat_messages`（id/sessionId FK CASCADE/role USER|AI/text/createdAtEpochMillis，sessionId 有索引）；HmoneyDatabase version 4＋手寫 MIGRATION_3_4（對照 MIGRATION_2_3 模式）併入 MIGRATIONS；SessionDao／ChatMessageDao；ChatRepository（domain 介面＋ChatRepositoryImpl＋Hilt @Binds）；保護：每次 addMessage 後 trimToLatest(200)——單 session 超過 200 則刪最舊。
+  - **B2（單一資料來源同步架構，請勿誤改）**：AiChatViewModel 訊息改由 ChatRepository 的 DB flow 驅動——各頁 AiAssistantSheet 觀察同一份 flow 天然跨頁同步；目前 session id 存 DataStore（settings DataStore 的 ai_current_session_id），關掉重開仍在同一對話；send() 寫 USER 訊息→呼叫 AI→寫 AI 訊息，AI 回覆首行截 20 字為 title（ChatTitle.from，純邏輯可測試；空 title＝未命名，UI 顯示「新對話」）。**記憶體路徑清單**：AiChatViewModel 原本純 StateFlow 訊息路徑已完全移除；唯一例外是「保留對話」關閉時（keepHistory=false）刻意走純記憶體（ ephemeralCounter 負數 id、不寫 DB、離開即消失），這是設定開關的預期行為，非殘留。
+  - **B3（對話管理 UI）**：頂部功能列＝新對話（AddComment）＋對話選擇 dropdown（Forum，可切換、尾端垃圾桶刪除單一對話附確認框）＋清空所有對話（DeleteSweep，確認框）；保留關閉時隱藏對話選擇；訊息氣泡長按 combinedClickable→DropdownMenu 複製（LocalClipboardManager）／刪除單則；快捷提問 4 chips（我這個月花最多的是什麼？／本月收支概況／檢查這週有沒有異常支出／給我省錢建議）點擊帶入輸入框可編輯，受設定開關控制顯示。
+  - **B4（設定頁「AI 助手」區塊，DataStore 開關）**：對話時附上我的財務資料（預設開；關閉＝chat 不組財務 context，純聊天）、保留對話記錄（預設開；關閉＝純記憶體）、自動清除 30 天前對話（預設開；ChatCleanupWorker 每日跑，沿用 WorkScheduler 排程，關閉時 worker 直接 return）、顯示快捷提問（預設開）。AiRepository.chat 簽名改為 `chat(question, includeContext)`。
+  - **A1 總覽頁**：「本週 AI 洞察」大卡與未設定引導卡移除，改為標題列右側 ✨ 圓形圖示入口（與齒輪並排）——有新洞察（UiState.Insight）時顯示小圓點，點擊歸零並觸發 weekInsight，結果照舊 AiResultDialog（未設定 AI 時由對話框引導前往設定）；預算卡「剩餘／每日可用」兩列合併為同一列左右對照；帳戶餘額維持單行 LazyRow 小卡；近期明細上移（首屏 10 秒內可見收支與最近幾筆）。數字滾動、玻璃卡、AutoHideFabColumn、FAB 行為零改動。
+  - **A2 明細頁（篩選收合，請勿誤改）**：首屏只剩「搜尋列＋篩選按鈕（FilterList，有篩選時主色＋圓點）」，已套用篩選另以一列摘要 chips 呈現（類型／帳戶／分類／期間，點 chip 即移除該條件）；全部篩選條件集中於 ModalBottomSheet（skipHalfExpanded，沿用既有 FilterChip 與 AI 自然語言篩選、期間對話框短日期格式 widthIn(160.dp)）；批次分析移入篩選 sheet。**TransactionsViewModel 與篩選邏輯完全未動**，僅呈現層重排。
+  - **A3 統計頁**：空狀態整併為單一置中 StatsChartEmptyState（hasData = slices/ranking/trend 皆無資料），無資料時三張圖表卡不渲染；時間切換 SegmentedButton(weight 1f)＋帳戶下拉（FilterChip＋DropdownMenu）＋AI 分析本期縮為工具列右側 ✨ 圖示按鈕，壓縮為一條工具列；排行榜卡 contentPadding 縮 12dp；CategoryPalette 與圖表點擊詳情（Snackbar）沿用。
+  - **驗證**：沙箱無 JDK/Android SDK，括號平衡與引用檢查以 Python 完成；lint、單元測試（新增 ChatTitleTest 3 案例，既有 23 案例不受影響）、雙 APK 由 GitHub Actions 執行。實機驗收：DB v3 舊版升級不丟資料（MIGRATION_3_4）、全新安裝正常、AI sheet 首開即全開輸入框可見、跨頁同一份對話、四開關即時生效（保留關閉不寫入、附資料關閉提問不含個資）、深淺色與 fontScale 1.3。
+  - **遺留事項**：實機驗證上述清單；「自動清除」首次清理於排程觸發後生效。
+
 - **Session 27（AI 助手輸入框被鍵盤遮擋最終修復：weight(1f) 取代固定高度，已完成）**：只動 AiAssistantSheet.kt，其他檔案未碰。
   - **根因（請勿誤改警示）**：訊息列表用固定高度 `heightIn(min = 200.dp, max = 420.dp)` 而非 `weight(1f)`——訊息一多列表撑高，Column 總高超過鍵盤彈出後的可見空間，Column 本身不捲動，底部輸入列被推出畫面外。imePadding 位置沒問題，**高度策略才是根因；勿把固定 heightIn(max) 加回來**。
   - **修復**：訊息 LazyColumn 高度改 `Modifier.weight(1f).heightIn(min = 160.dp)`——Column 內有 weight 子項後會填滿 sheet 剩餘高度，鍵盤彈出（imePadding 生效）時列表自動壓縮，輸入列永遠可見；移除 max = 420.dp 固定上限。空狀態 min = 160.dp 不會讓 sheet 空一大段。Column 底部 padding 由 20dp 縮為 12dp（輸入列與 IME 間距）。

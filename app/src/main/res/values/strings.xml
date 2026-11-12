@@ -257,7 +257,6 @@
     <string name="ai_result_title">AI 分析結果</string>
     <string name="ai_insight_week">本週 AI 洞察</string>
     <string name="ai_retry">重新分析</string>
-    <string name="overview_ai_guide">設定 AI 之後，可以獲得每月花費分析</string>
     <string name="ai_analyze_period">AI 分析本期</string>
     <string name="ai_analyze_accounts">AI 解讀帳戶</string>
     <string name="ai_analyze_batch">批次分析</string>
@@ -304,4 +303,36 @@
     <string name="categories_deleted">分類已刪除</string>
     <string name="common_confirm">確定</string>
     <string name="common_save">儲存</string>
+
+    <!-- AI 對話管理（Session 28） -->
+    <string name="ai_chat_new">新對話</string>
+    <string name="ai_chat_untitled">新對話</string>
+    <string name="ai_chat_pick_session">選擇對話</string>
+    <string name="ai_chat_clear_all">清空所有對話</string>
+    <string name="ai_chat_clear_all_confirm">確定要清空所有對話嗎？此操作無法復原。</string>
+    <string name="ai_chat_delete_session">刪除對話</string>
+    <string name="ai_chat_delete_session_confirm">確定要刪除這個對話嗎？此操作無法復原。</string>
+    <string name="ai_chat_copy">複製文字</string>
+    <string name="ai_chat_delete_message">刪除這則訊息</string>
+    <string name="ai_quick_month_top">我這個月花最多的是什麼？</string>
+    <string name="ai_quick_month_summary">本月收支概況</string>
+    <string name="ai_quick_week_anomaly">檢查這週有沒有異常支出</string>
+    <string name="ai_quick_saving_tips">給我省錢建議</string>
+
+    <!-- 設定頁 AI 助手區塊 -->
+    <string name="settings_ai_assistant_title">AI 助手</string>
+    <string name="settings_ai_include_context">對話時附上我的財務資料</string>
+    <string name="settings_ai_include_context_desc">開啟時會附上精簡去敏感化的記帳彙總，回答更貼近你的狀況；關閉則為純聊天，不會送出任何個資</string>
+    <string name="settings_ai_keep_history">保留對話記錄</string>
+    <string name="settings_ai_keep_history_desc">關閉後對話不會存入資料庫，離開 App 即消失</string>
+    <string name="settings_ai_auto_cleanup">自動清除 30 天前對話</string>
+    <string name="settings_ai_auto_cleanup_desc">每天背景清理超過 30 天未更新的對話</string>
+    <string name="settings_ai_show_quick_prompts">顯示快捷提問</string>
+    <string name="settings_ai_show_quick_prompts_desc">在 AI 助手頂部顯示常用問題按鈕</string>
+
+    <!-- 明細頁篩選收合 -->
+    <string name="transactions_filter">篩選</string>
+    <string name="transactions_filter_sheet_title">篩選條件</string>
+    <string name="transactions_filter_applied">已套用篩選</string>
+    <string name="transactions_filter_clear_all">清除全部篩選</string>
 </resources>

@@ -1,5 +1,6 @@
 package com.hmoney.app.ui.screens.overview
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -34,6 +36,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -78,12 +81,17 @@ fun OverviewScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val aiState by aiViewModel.uiState.collectAsState()
-    val aiConfigured by aiViewModel.aiConfigured.collectAsState(initial = true)
+    var insightUnread by remember { mutableStateOf(false) }
     var showAddSheet by remember { mutableStateOf(false) }
     var showAiSheet by remember { mutableStateOf(false) }
     val glassState = rememberHazeState()
     val snackbarHostState = remember { SnackbarHostState() }
     val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+
+    // 有新的本週洞察時，✨ 入口顯示小圓點提示；點開後歸零
+    LaunchedEffect(aiState) {
+        if (aiState is FeatureAiViewModel.UiState.Insight) insightUnread = true
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
@@ -108,11 +116,38 @@ fun OverviewScreen(
                             text = stringResource(R.string.overview_title),
                             style = MaterialTheme.typography.headlineMedium,
                         )
-                        IconButton(onClick = onGoSettings) {
-                            Icon(
-                                Icons.Outlined.Settings,
-                                contentDescription = stringResource(R.string.tab_settings),
-                            )
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            // 本週 AI 洞察小入口：點擊後以 AiResultDialog 顯示（未設定 AI 時由對話框引導前往設定）
+                            Box {
+                                IconButton(
+                                    onClick = {
+                                        insightUnread = false
+                                        aiViewModel.weekInsight()
+                                    },
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.AutoAwesome,
+                                        contentDescription = stringResource(R.string.ai_insight_week),
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                                if (insightUnread) {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(top = 8.dp, end = 8.dp)
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary),
+                                    )
+                                }
+                            }
+                            IconButton(onClick = onGoSettings) {
+                                Icon(
+                                    Icons.Outlined.Settings,
+                                    contentDescription = stringResource(R.string.tab_settings),
+                                )
+                            }
                         }
                     }
                     Text(
@@ -121,35 +156,6 @@ fun OverviewScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     AnimatedAmountText(cents = state.totalBalanceCents)
-                    // 本週 AI 洞察按鈕；未設定 AI 時改為引導卡
-                    if (aiConfigured) {
-                        TextButton(
-                            onClick = aiViewModel::weekInsight,
-                            modifier = Modifier.align(Alignment.Start),
-                        ) {
-                            Icon(
-                                Icons.Outlined.AutoAwesome,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Text(" " + stringResource(R.string.ai_insight_week))
-                        }
-                    } else {
-                        GlassCard(
-                            glassState = glassState,
-                            modifier = Modifier.align(Alignment.Start),
-                        ) {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = stringResource(R.string.overview_ai_guide),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                                TextButton(onClick = onGoSettings) {
-                                    Text(stringResource(R.string.ai_go_settings))
-                                }
-                            }
-                        }
-                    }
                 }
             }
 
@@ -252,38 +258,39 @@ fun OverviewScreen(
                             },
                             modifier = Modifier.padding(top = 8.dp),
                         )
+                        // 剩餘與每日可用壓縮為同一列，提高首屏資訊密度
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                text = stringResource(R.string.overview_budget_remaining_label),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            AnimatedAmountText(
-                                cents = remainingCents,
-                                style = MaterialTheme.typography.titleSmall,
-                                color = statusColor,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = stringResource(R.string.overview_budget_daily_label),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            AnimatedAmountText(
-                                cents = dailyAvailableCents,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.overview_budget_remaining_label),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                AnimatedAmountText(
+                                    cents = remainingCents,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = statusColor,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text(
+                                    text = stringResource(R.string.overview_budget_daily_label),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                AnimatedAmountText(
+                                    cents = dailyAvailableCents,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }
