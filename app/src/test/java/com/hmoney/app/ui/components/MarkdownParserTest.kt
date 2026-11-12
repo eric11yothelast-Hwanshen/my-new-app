@@ -161,7 +161,7 @@ class MarkdownRenderTest {
         assertEquals("用 fmt 格式化", result.text)
         val codeSpans = result.spanStyles.filter { it.item.fontFamily == FontFamily.Monospace }
         assertEquals(1, codeSpans.size)
-        assertEquals(1, codeSpans[0].start)
-        assertEquals(4, codeSpans[0].end)
+        assertEquals(2, codeSpans[0].start)
+        assertEquals(5, codeSpans[0].end)
     }
 }
