@@ -19,6 +19,14 @@
 
 ## Session 紀錄
 
+- **Session 18（明細滑動 bug 修復＋滾動自動隱藏 FAB＋版本 1.1.0，已完成）**：新增 ui/components/SwipeToRevealRow.kt 與 ui/components/AutoHideFab.kt；修改 TransactionsScreen、OverviewScreen、StatsScreen、AccountsScreen 與 app/build.gradle.kts（versionName 1.0.0 → 1.1.0，versionCode 維持 GITHUB_RUN_NUMBER 不動）。AddTransactionSheet 捲動結構與 CategoryGrid 未動。
+  - **Bug 1 根因與修復**：舊做法 SwipeToDismissBox 未設攔截時，滑過門檻會停在 Dismissed 錨點（＝整列寬），前景整列滑出畫面消失；且前景 Row 內殘留 Session 6 前的常駐編輯／刪除按鈕與背景重疊。修復：移除前景常駐按鈕，捨棄 SwipeToDismissBox，改自製 `SwipeToRevealRow`（ui/components/，可重用）。
+  - **SwipeToRevealRow 錨點設計（請勿誤改）**：`AnchoredDraggableState<RevealValue>`（foundation 1.9 新簽名：建構只吃 initialValue，錨點用 `updateAnchors` 於 SideEffect 注入，動畫用 `animateTo`——勿用舊的 positionalThreshold／velocityThreshold 建構參數，該組態已移到 Modifier 且舊欄位為 deprecated lateinit）。兩錨點：Settled = 0f、Revealed = -160dp（兩顆 48dp 動作鈕＋12dp 間距＋左右 16dp 邊距）；水平手勢（Orientation.Horizontal）與垂直 LazyColumn 捲動不衝突。滑到 Revealed 停住不消失；點內容區或列表空白處回彈；動作需明確點按鈕，快慢滑皆不誤觸。前景內容加 `colorScheme.surface` 底色（列原本透明，否則動作鈕會從底下透出）。
+  - **單一展開狀態**：TransactionsScreen 持有 `revealedId: Long?`，每列 `revealed = revealedId == tx.id`；滑開第二筆時前一筆經 `animateTo(Settled)` 自動回彈。編輯／刪除仍走既有 editingId／deletingId（含刪除確認對話框），點按鈕先收回再開。
+  - **Bug 2 修復：AutoHideFabColumn（ui/components/）**：顯示條件為 `!listState.canScrollBackward`（還能向上捲回＝已離開頂端）。**請勿誤改**：勿改成 canScrollForward——內容比畫面長時，停在頂端 canScrollForward 也為 true，FAB 會在頂端就消失。隱藏動畫為「位移 200dp 滑出＋淡出」（tween 220ms，graphicsLayer），位移出畫面同時確保隱藏時不可誤觸。套用四頁：總覽（AI＋快速記帳 FAB）、明細（AI FAB）、帳戶（Scaffold floatingActionButton 內 AI＋新增）、統計（AI FAB）。
+  - **內距**：四頁 LazyColumn 補 `contentPadding = PaddingValues(bottom = 160.dp)`，最後一筆金額滾到底可完整看清；明細列表另加無 ripple 的空白處點擊收回展開列。
+  - **驗證方式**：沙箱無 JDK/Android SDK（與先前 session 相同），括號平衡已以 Python 檢查；lint＋單元測試＋雙 APK 簽署由 GitHub Actions 執行，Release 頁可下載。
+
 - **Session 17（明細頁交易項目滑動操作：編輯／刪除，已完成）**：只改 TransactionsScreen.kt；AddTransactionSheet、刪除確認對話框、ViewModel、資料層完全未動。
   - **改了什麼**：LazyColumn 內每筆交易項目（僅交易列，不含日期分組標題）包進 Material3 `SwipeToDismissBox`，左滑露出「編輯」「刪除」兩個圓形按鈕（編輯用 secondaryContainer、刪除用 errorContainer，皆取自 colorScheme）；點按鈕先 `snapTo(Settled)` 收回再沿用既有流程（編輯＝editingId 開 AddTransactionSheet、刪除＝deletingId 開既有確認對話框）。
   - **方向決策（請勿誤改）**：採 **EndToStart（手指向左滑）**——需求第 1 點「左滑露出動作」與第 3 點「右滑不觸發」兩者一致指向左滑；原文括號內的「StartToEnd」與第 3 點矛盾，以行為描述為準。`enableStartToEnd = false`、`enableEndToStart = true`，右滑完全不起作用、未達門檻放開自動回彈。

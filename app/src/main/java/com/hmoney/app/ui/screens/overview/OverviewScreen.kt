@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -48,6 +50,7 @@ import com.hmoney.app.domain.model.TransactionType
 import com.hmoney.app.ui.common.Formats
 import com.hmoney.app.ui.common.IconMapper
 import com.hmoney.app.ui.components.AiFloatingButton
+import com.hmoney.app.ui.components.AutoHideFabColumn
 import com.hmoney.app.ui.components.AiResultDialog
 import com.hmoney.app.ui.components.AnimatedAmountText
 import com.hmoney.app.ui.components.EmptyState
@@ -76,13 +79,16 @@ fun OverviewScreen(
     var showAiSheet by remember { mutableStateOf(false) }
     val glassState = rememberHazeState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val listState = rememberLazyListState()
 
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .glassSource(glassState),
             verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(bottom = 160.dp),
         ) {
             item {
                 Column(
@@ -327,8 +333,9 @@ fun OverviewScreen(
             }
         }
 
-        // 浮動按鈕：AI 助手＋快速記帳
-        Column(
+        // 浮動按鈕：AI 助手＋快速記帳（滾動離開頂端時自動隱藏）
+        AutoHideFabColumn(
+            listState = listState,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(20.dp),

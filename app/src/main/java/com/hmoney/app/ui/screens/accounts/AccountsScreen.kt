@@ -6,12 +6,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -50,6 +52,7 @@ import com.hmoney.app.ui.common.AmountParser
 import com.hmoney.app.ui.common.Formats
 import com.hmoney.app.ui.common.IconMapper
 import com.hmoney.app.ui.components.AiFloatingButton
+import com.hmoney.app.ui.components.AutoHideFabColumn
 import com.hmoney.app.ui.components.AiResultDialog
 import com.hmoney.app.ui.components.EmptyState
 import com.hmoney.app.ui.components.GlassCard
@@ -89,6 +92,7 @@ fun AccountsScreen(
     var showAiSheet by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
     val deleteBlockedMessage = stringResource(R.string.accounts_delete_fail)
     val savedMessage = stringResource(R.string.accounts_saved)
     val deletedMessage = stringResource(R.string.accounts_deleted)
@@ -98,9 +102,11 @@ fun AccountsScreen(
         containerColor = Color.Transparent,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            Column(
-                horizontalAlignment = Alignment.End,
+            // 滾動離開頂端時自動隱藏
+            AutoHideFabColumn(
+                listState = listState,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.End,
             ) {
                 AiFloatingButton(onClick = { showAiSheet = true })
                 androidx.compose.material3.ExtendedFloatingActionButton(
@@ -154,8 +160,10 @@ fun AccountsScreen(
                 )
             } else {
                 LazyColumn(
+                    state = listState,
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 160.dp),
                 ) {
                     items(state.accountsWithBalance, key = { it.first.id }) { (account, balance) ->
                         GlassCard(

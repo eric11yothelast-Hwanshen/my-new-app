@@ -50,7 +50,7 @@ android {
         targetSdk = 36
         // CI 以 GITHUB_RUN_NUMBER 覆寫遞增，確保可覆蓋安裝升級
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
-        versionName = "1.0.0"
+        versionName = "1.1.0"
     }
 
     // 以不衝突的區域變數承接（避免 lambda 內同名屬性自我賦值）

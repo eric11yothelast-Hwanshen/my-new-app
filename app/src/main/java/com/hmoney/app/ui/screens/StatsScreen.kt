@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -47,6 +49,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.hmoney.app.R
 import com.hmoney.app.ui.common.Formats
 import com.hmoney.app.ui.components.AiFloatingButton
+import com.hmoney.app.ui.components.AutoHideFabColumn
 import com.hmoney.app.ui.components.AiResultDialog
 import com.hmoney.app.ui.components.DonutChart
 import com.hmoney.app.ui.components.GlassCard
@@ -80,13 +83,16 @@ fun StatsScreen(
     var showAddSheet by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
 
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .glassSource(glassState),
             verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(bottom = 160.dp),
         ) {
         item {
             Column(
@@ -377,13 +383,15 @@ fun StatsScreen(
         }
         }
 
-        // 浮動 AI 按鈕（全域 AI 助手）
-        AiFloatingButton(
-            onClick = { showAiSheet = true },
+        // 浮動 AI 按鈕（全域 AI 助手，滾動離開頂端時自動隱藏）
+        AutoHideFabColumn(
+            listState = listState,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(20.dp),
-        )
+        ) {
+            AiFloatingButton(onClick = { showAiSheet = true })
+        }
 
         // 圖例／圓餅分區點擊後的分類金額詳細
         SnackbarHost(
