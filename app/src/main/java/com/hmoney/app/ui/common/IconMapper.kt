@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.ShoppingBag
+import androidx.compose.material.icons.outlined.Smartphone
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -40,6 +41,7 @@ object IconMapper {
         "account_balance_wallet" to Icons.Outlined.AccountBalanceWallet,
         "credit_card" to Icons.Outlined.CreditCard,
         "savings" to Icons.Outlined.Savings,
+        "smartphone" to Icons.Outlined.Smartphone,
         "send" to Icons.AutoMirrored.Outlined.Send,
     )
 
@@ -50,6 +52,8 @@ object IconMapper {
         "account_balance_wallet",
         "credit_card",
         "savings",
+        "smartphone",
+        "trending_up",
     )
 
     fun iconOf(key: String): ImageVector = map[key] ?: Icons.Outlined.MoreHoriz

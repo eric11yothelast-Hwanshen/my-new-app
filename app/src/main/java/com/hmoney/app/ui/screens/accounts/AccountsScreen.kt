@@ -8,15 +8,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
@@ -57,23 +62,14 @@ import com.hmoney.app.ui.components.AiResultDialog
 import com.hmoney.app.ui.components.EmptyState
 import com.hmoney.app.ui.components.GlassCard
 import com.hmoney.app.ui.components.glassSource
+import com.hmoney.app.ui.theme.AccountPalette
 import com.hmoney.app.ui.screens.ai.AiAssistantSheet
 import com.hmoney.app.ui.screens.ai.FeatureAiViewModel
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.launch
 
-// 可選顏色（ARGB）
-private val accountColors = listOf(
-    0xFF43A047,
-    0xFF42A5F5,
-    0xFF7E57C2,
-    0xFFEF5350,
-    0xFFFFB74D,
-    0xFF26A69A,
-)
-
 /**
- * 帳戶頁：帳戶玻璃卡片（含即時餘額）＋管理（新增／編輯／隱藏／刪除）。
+ * 帳戶頁：帳戶玻璃卡片（含即時餘額，以帳戶色主題化）＋管理（新增／編輯／隱藏／刪除）。
  */
 @Composable
 fun AccountsScreen(
@@ -166,51 +162,68 @@ fun AccountsScreen(
                     contentPadding = PaddingValues(bottom = 160.dp),
                 ) {
                     items(state.accountsWithBalance, key = { it.first.id }) { (account, balance) ->
-                        GlassCard(
-                            glassState = glassState,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp)
-                                .clickable { editingAccount = account },
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        val accentColor = Color(account.colorArgb)
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            GlassCard(
+                                glassState = glassState,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { editingAccount = account },
                             ) {
-                                Icon(
-                                    imageVector = IconMapper.iconOf(account.iconKey),
-                                    contentDescription = null,
-                                    tint = Color(account.colorArgb),
-                                    modifier = Modifier.size(32.dp),
-                                )
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    ) {
-                                        Text(
-                                            text = account.name,
-                                            style = MaterialTheme.typography.titleMedium,
-                                        )
-                                        if (account.isHidden) {
+                                Row(
+                                    modifier = Modifier.height(IntrinsicSize.Min),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(4.dp)
+                                            .fillMaxHeight()
+                                            .background(accentColor, RoundedCornerShape(2.dp)),
+                                    )
+                                    Icon(
+                                        imageVector = IconMapper.iconOf(account.iconKey),
+                                        contentDescription = null,
+                                        tint = accentColor,
+                                        modifier = Modifier.size(32.dp),
+                                    )
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
                                             Text(
-                                                text = stringResource(R.string.accounts_hidden_tag),
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                text = account.name,
+                                                style = MaterialTheme.typography.bodyMedium,
                                             )
+                                            if (account.isHidden) {
+                                                Text(
+                                                    text = stringResource(R.string.accounts_hidden_tag),
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
                                         }
+                                        Text(
+                                            text = stringResource(R.string.accounts_currency_tag, account.currency),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
                                     }
                                     Text(
-                                        text = stringResource(R.string.accounts_currency_tag, account.currency),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        text = Formats.moneyWithCurrency(balance, account.currency),
+                                        style = MaterialTheme.typography.titleLarge,
                                     )
                                 }
-                                Text(
-                                    text = Formats.moneyWithCurrency(balance, account.currency),
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
                             }
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .background(
+                                        accentColor.copy(alpha = 0.12f),
+                                        RoundedCornerShape(24.dp),
+                                    ),
+                            )
                         }
                     }
                     item {
@@ -332,7 +345,7 @@ private fun AccountDialog(
 ) {
     var name by remember { mutableStateOf(initialAccount?.name ?: "") }
     var iconKey by remember { mutableStateOf(initialAccount?.iconKey ?: "payments") }
-    var color by remember { mutableStateOf(initialAccount?.colorArgb ?: accountColors[0]) }
+    var color by remember { mutableStateOf(initialAccount?.colorArgb ?: AccountPalette.colorArgbs[0]) }
     var balanceText by remember { mutableStateOf("") }
     var nameError by remember { mutableStateOf(false) }
 
@@ -378,7 +391,7 @@ private fun AccountDialog(
 
                 Text(stringResource(R.string.accounts_color), style = MaterialTheme.typography.titleSmall)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(accountColors) { c ->
+                    items(AccountPalette.colorArgbs) { c ->
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
