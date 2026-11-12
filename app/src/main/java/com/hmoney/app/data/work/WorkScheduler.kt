@@ -45,6 +45,13 @@ class WorkScheduler @Inject constructor(
             PeriodicWorkRequestBuilder<BackupWorker>(Duration.ofDays(1)).build(),
         )
 
+        // AI 對話自動清除 30 天前（受設定開關控制）：每日
+        workManager.enqueueUniquePeriodicWork(
+            "chat_cleanup",
+            ExistingPeriodicWorkPolicy.UPDATE,
+            PeriodicWorkRequestBuilder<ChatCleanupWorker>(Duration.ofDays(1)).build(),
+        )
+
         // 每週摘要：每週日 20:00（對齊到下次週日 20:00 起算）
         val now = LocalDateTime.now()
         var next = now.toLocalDate().with(DayOfWeek.SUNDAY).atTime(20, 0)

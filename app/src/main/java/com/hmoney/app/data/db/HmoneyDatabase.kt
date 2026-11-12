@@ -8,12 +8,16 @@ import com.hmoney.app.data.db.dao.AccountDao
 import com.hmoney.app.data.db.dao.AiAnalysisDao
 import com.hmoney.app.data.db.dao.BudgetDao
 import com.hmoney.app.data.db.dao.CategoryDao
+import com.hmoney.app.data.db.dao.ChatMessageDao
+import com.hmoney.app.data.db.dao.SessionDao
 import com.hmoney.app.data.db.dao.RecurringTransactionDao
 import com.hmoney.app.data.db.dao.TransactionDao
 import com.hmoney.app.data.db.entity.AccountEntity
 import com.hmoney.app.data.db.entity.AiAnalysisEntity
 import com.hmoney.app.data.db.entity.BudgetEntity
 import com.hmoney.app.data.db.entity.CategoryEntity
+import com.hmoney.app.data.db.entity.ChatMessageEntity
+import com.hmoney.app.data.db.entity.ChatSessionEntity
 import com.hmoney.app.data.db.entity.RecurringTransactionEntity
 import com.hmoney.app.data.db.entity.TransactionEntity
 
@@ -29,8 +33,10 @@ import com.hmoney.app.data.db.entity.TransactionEntity
         BudgetEntity::class,
         RecurringTransactionEntity::class,
         AiAnalysisEntity::class,
+        ChatSessionEntity::class,
+        ChatMessageEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class HmoneyDatabase : RoomDatabase() {
@@ -41,6 +47,8 @@ abstract class HmoneyDatabase : RoomDatabase() {
     abstract fun budgetDao(): BudgetDao
     abstract fun recurringTransactionDao(): RecurringTransactionDao
     abstract fun aiAnalysisDao(): AiAnalysisDao
+    abstract fun sessionDao(): SessionDao
+    abstract fun chatMessageDao(): ChatMessageDao
 
     companion object {
         /** 首次安裝時的種子資料：預設帳戶與內建分類 */
@@ -119,7 +127,34 @@ abstract class HmoneyDatabase : RoomDatabase() {
             }
         }
 
+        /** 版本 3 → 4：新增 AI 對話 session 與訊息資料表 */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `chat_sessions`" +
+                        "(`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
+                        " `title` TEXT NOT NULL," +
+                        " `createdAtEpochMillis` INTEGER NOT NULL," +
+                        " `updatedAtEpochMillis` INTEGER NOT NULL)",
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `chat_messages`" +
+                        "(`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
+                        " `sessionId` INTEGER NOT NULL," +
+                        " `role` TEXT NOT NULL," +
+                        " `text` TEXT NOT NULL," +
+                        " `createdAtEpochMillis` INTEGER NOT NULL," +
+                        " FOREIGN KEY(`sessionId`) REFERENCES `chat_sessions`(`id`)" +
+                        " ON UPDATE NO ACTION ON DELETE CASCADE)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_chat_messages_sessionId` ON `chat_messages` (`sessionId`)",
+                )
+            }
+        }
+
         /** 未來版本升級時擴充此清單 */
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+        val MIGRATIONS: Array<Migration> =
+            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
     }
 }

@@ -182,6 +182,9 @@ fun SettingsScreen(
         // ===== AI 連線 =====
         AiSection(aiViewModel, onOpenAi)
 
+        // ===== AI 助手 =====
+        AiAssistantSection(settingsViewModel)
+
         // ===== 備份與還原 =====
         BackupSection()
     }
@@ -191,6 +194,103 @@ fun SettingsScreen(
         hostState = snackbarHostState,
         modifier = Modifier.align(Alignment.BottomCenter),
     )
+    }
+}
+
+/** AI 助手區：四個 DataStore 開關（附財務資料、保留對話、自動清除、快捷提問） */
+@Composable
+private fun AiAssistantSection(viewModel: SettingsViewModel) {
+    val aiAssistant by viewModel.aiAssistant.collectAsState()
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = stringResource(R.string.settings_ai_assistant_title),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.settings_ai_include_context),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = stringResource(R.string.settings_ai_include_context_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            FluidSwitch(
+                checked = aiAssistant.includeFinanceContext,
+                onCheckedChange = viewModel::setAiIncludeContext,
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.settings_ai_keep_history),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = stringResource(R.string.settings_ai_keep_history_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            FluidSwitch(
+                checked = aiAssistant.keepHistory,
+                onCheckedChange = viewModel::setAiKeepHistory,
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.settings_ai_auto_cleanup),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = stringResource(R.string.settings_ai_auto_cleanup_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            FluidSwitch(
+                checked = aiAssistant.autoCleanup,
+                onCheckedChange = viewModel::setAiAutoCleanup,
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.settings_ai_show_quick_prompts),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = stringResource(R.string.settings_ai_show_quick_prompts_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            FluidSwitch(
+                checked = aiAssistant.showQuickPrompts,
+                onCheckedChange = viewModel::setAiShowQuickPrompts,
+            )
+        }
     }
 }
 

@@ -34,8 +34,8 @@ interface AiRepository {
     /** 自由提問：使用者問題＋本週／本月彙總資料一起送出（存歷史） */
     suspend fun askQuestion(question: String): AiOutcome
 
-    /** 通用文字對話（全域 AI 助手用；附本週／本月財務資料作為 context） */
-    suspend fun chat(question: String): AiTextResult
+    /** 通用文字對話（全域 AI 助手用；includeContext = false 時為純聊天、不附財務資料） */
+    suspend fun chat(question: String, includeContext: Boolean = true): AiTextResult
 
     /** 潤飾／擴充備註（記帳頁智慧備註） */
     suspend fun polishNote(note: String): AiTextResult

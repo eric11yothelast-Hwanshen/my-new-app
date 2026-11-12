@@ -46,4 +46,10 @@ object DatabaseModule {
 
     @Provides
     fun provideAiAnalysisDao(database: HmoneyDatabase) = database.aiAnalysisDao()
+
+    @Provides
+    fun provideSessionDao(database: HmoneyDatabase) = database.sessionDao()
+
+    @Provides
+    fun provideChatMessageDao(database: HmoneyDatabase) = database.chatMessageDao()
 }

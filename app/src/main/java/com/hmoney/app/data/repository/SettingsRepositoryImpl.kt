@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.hmoney.app.domain.model.AppearanceSettings
@@ -32,6 +33,11 @@ class SettingsRepositoryImpl @Inject constructor(
     private val reminderEnabledKey = booleanPreferencesKey("reminder_enabled")
     private val reminderHourKey = intPreferencesKey("reminder_hour")
     private val reminderMinuteKey = intPreferencesKey("reminder_minute")
+    private val aiIncludeContextKey = booleanPreferencesKey("ai_include_context")
+    private val aiKeepHistoryKey = booleanPreferencesKey("ai_keep_history")
+    private val aiAutoCleanupKey = booleanPreferencesKey("ai_auto_cleanup")
+    private val aiShowQuickPromptsKey = booleanPreferencesKey("ai_show_quick_prompts")
+    private val aiCurrentSessionIdKey = longPreferencesKey("ai_current_session_id")
 
     override fun observeAppearance(): Flow<AppearanceSettings> =
         context.settingsDataStore.data.map { prefs ->
@@ -78,6 +84,47 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun setFlag(key: String, value: Boolean) {
         context.settingsDataStore.edit { prefs ->
             prefs[booleanPreferencesKey(key)] = value
+        }
+    }
+
+    override fun observeAiAssistant(): Flow<SettingsRepository.AiAssistantSettings> =
+        context.settingsDataStore.data.map { prefs ->
+            SettingsRepository.AiAssistantSettings(
+                includeFinanceContext = prefs[aiIncludeContextKey] ?: true,
+                keepHistory = prefs[aiKeepHistoryKey] ?: true,
+                autoCleanup = prefs[aiAutoCleanupKey] ?: true,
+                showQuickPrompts = prefs[aiShowQuickPromptsKey] ?: true,
+                currentSessionId = prefs[aiCurrentSessionIdKey] ?: 0L,
+            )
+        }
+
+    override suspend fun setAiAssistantIncludeContext(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[aiIncludeContextKey] = enabled
+        }
+    }
+
+    override suspend fun setAiAssistantKeepHistory(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[aiKeepHistoryKey] = enabled
+        }
+    }
+
+    override suspend fun setAiAssistantAutoCleanup(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[aiAutoCleanupKey] = enabled
+        }
+    }
+
+    override suspend fun setAiAssistantShowQuickPrompts(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[aiShowQuickPromptsKey] = enabled
+        }
+    }
+
+    override suspend fun setAiCurrentSessionId(sessionId: Long) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[aiCurrentSessionIdKey] = sessionId
         }
     }
 }

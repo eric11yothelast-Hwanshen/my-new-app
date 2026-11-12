@@ -250,3 +250,28 @@ class BackupWorker @AssistedInject constructor(
         return if (result.isSuccess) Result.success() else Result.retry()
     }
 }
+
+/**
+ * AI 對話自動清除 Worker：每日刪除 30 天前未更新的對話（受設定開關控制）。
+ */
+@HiltWorker
+class ChatCleanupWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val chatRepository: com.hmoney.app.domain.repository.ChatRepository,
+    private val settingsRepository: SettingsRepository,
+) : CoroutineWorker(context, params) {
+
+    override suspend fun doWork(): Result {
+        val settings = settingsRepository.observeAiAssistant().first()
+        if (!settings.autoCleanup) return Result.success()
+        val cutoff = System.currentTimeMillis() - RETENTION_MILLIS
+        chatRepository.deleteSessionsOlderThan(cutoff)
+        return Result.success()
+    }
+
+    private companion object {
+        /** 保留 30 天 */
+        const val RETENTION_MILLIS = 30L * 24 * 60 * 60 * 1000
+    }
+}

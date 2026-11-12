@@ -86,14 +86,21 @@ class AiRepositoryImpl @Inject constructor(
 
     // ===== 通用 AI 功能（全 App 共用服務層） =====
 
-    override suspend fun chat(question: String): AiTextResult {
+    override suspend fun chat(question: String, includeContext: Boolean): AiTextResult {
+        val systemPrompt = "你是一位專業的個人財務助理，請以繁體中文回答使用者的問題。" +
+            "回答精簡有條理，並基於提供的記帳資料。"
+        if (!includeContext) {
+            // 純聊天模式：不附任何財務資料，兼顧隱私
+            return callRaw(
+                systemPrompt = systemPrompt,
+                userPrompt = "使用者問題：$question",
+            )
+        }
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
         val weekData = buildWeekData(today.minusDays(7), today, today.minusDays(14), zone)
         val monthData = buildMonthData(today.withDayOfMonth(1), today, zone)
         val accountsData = buildAccountsData()
-        val systemPrompt = "你是一位專業的個人財務助理，請以繁體中文回答使用者的問題。" +
-            "回答精簡有條理，並基於提供的記帳資料。"
         return callRaw(
             systemPrompt = systemPrompt,
             userPrompt = "記帳資料（已精簡去敏感化）：\n$weekData\n$monthData\n$accountsData\n\n使用者問題：$question",

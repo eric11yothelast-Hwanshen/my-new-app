@@ -27,4 +27,25 @@ interface SettingsRepository {
     suspend fun getFlag(key: String): Boolean
 
     suspend fun setFlag(key: String, value: Boolean)
+
+    /** AI 助手設定：context 附加、對話保留、自動清除、快捷提問與目前 session id */
+    data class AiAssistantSettings(
+        val includeFinanceContext: Boolean = true,
+        val keepHistory: Boolean = true,
+        val autoCleanup: Boolean = true,
+        val showQuickPrompts: Boolean = true,
+        val currentSessionId: Long = 0L,
+    )
+
+    fun observeAiAssistant(): Flow<AiAssistantSettings>
+
+    suspend fun setAiAssistantIncludeContext(enabled: Boolean)
+
+    suspend fun setAiAssistantKeepHistory(enabled: Boolean)
+
+    suspend fun setAiAssistantAutoCleanup(enabled: Boolean)
+
+    suspend fun setAiAssistantShowQuickPrompts(enabled: Boolean)
+
+    suspend fun setAiCurrentSessionId(sessionId: Long)
 }

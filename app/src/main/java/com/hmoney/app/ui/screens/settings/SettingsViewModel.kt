@@ -13,8 +13,8 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * 設定 ViewModel：目前實作外觀（深色模式／動態色彩），
- * 預算、AI 連線、通知、備份將於後續階段加入。
+ * 設定 ViewModel：外觀（深色模式／動態色彩）與 AI 助手開關
+ * （附財務資料、保留對話、自動清除、快捷提問）。
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -28,11 +28,35 @@ class SettingsViewModel @Inject constructor(
             initialValue = AppearanceSettings(),
         )
 
+    val aiAssistant: StateFlow<SettingsRepository.AiAssistantSettings> =
+        settingsRepository.observeAiAssistant()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = SettingsRepository.AiAssistantSettings(),
+            )
+
     fun setDarkMode(mode: DarkMode) {
         viewModelScope.launch { settingsRepository.setDarkMode(mode.name) }
     }
 
     fun setDynamicColor(enabled: Boolean) {
         viewModelScope.launch { settingsRepository.setDynamicColor(enabled) }
+    }
+
+    fun setAiIncludeContext(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setAiAssistantIncludeContext(enabled) }
+    }
+
+    fun setAiKeepHistory(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setAiAssistantKeepHistory(enabled) }
+    }
+
+    fun setAiAutoCleanup(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setAiAssistantAutoCleanup(enabled) }
+    }
+
+    fun setAiShowQuickPrompts(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setAiAssistantShowQuickPrompts(enabled) }
     }
 }
