@@ -19,6 +19,13 @@
 
 ## Session 紀錄
 
+- **Session 13（統計頁空狀態與圓餅圖視覺優化，已完成）**：對應 SPEC 3.3（統計），僅改 StatsScreen.kt、DonutChart（Charts.kt，僅統計頁使用）、字串資源，不動時間選擇器與帳戶篩選邏輯。
+  - **空狀態**：新增 StatsChartEmptyState（StatsScreen.kt private composable）取代原本一行 EmptyState——置中大圖示（PieChart 72dp）＋主標題＋引導文字＋「去記一筆」按鈕；沿用 OverviewScreen 的開啟方式（showAddSheet state + AddTransactionSheet(onDismiss)），未動 AddTransactionSheet 內部結構。
+  - **分類固定色盤**：新增 ui/theme/CategoryPalette.kt（單一共用常數檔），以分類名稱對應固定色（餐飲紅、交通靛藍、購物橙、娛樂紫、居家青、醫療粉、其他藍灰），取 Material 400 色階、深淺色模式皆可讀；色值與資料庫種子分類色一致，未收錄的自訂分類 fallback 沿用 DB colorArgb。DonutChart 與圖例色塊統一走 CategoryPalette.colorOf。
+  - **圖例列**：色塊＋分類名＋金額＋百分比，可點擊；圓餅分區也可點擊（DonutChart 新增 onSliceClick，pointerInput + detectTapGestures 以點擊角度換算分區，含 12dp 容差）。點擊後以 Snackbar 顯示「分類：金額（占 x%）」，SnackBarHost 置於 Box 底部中央（bottom 88dp 避開 FAB）。字串於組合期先解析（stats_slice_detail 格式化字串），不在點擊事件內取字串——沿用 Session 10 的 lint 決策。
+  - **用色原則**：分類色盤為共用常數檔（SPEC 允許），UI 其餘用色仍全部取自 MaterialTheme.colorScheme，無 hardcode 散落。
+  - **驗證方式**：沙箱無 JDK/Android SDK（與先前 session 相同），lint＋單元測試＋雙 APK 簽署由 GitHub Actions 執行，Release 頁可下載。
+
 - **Session 12（總覽頁「本月收支」卡片視覺強化，已完成）**：對應 SPEC 3.2 總覽頁，僅改 OverviewScreen.kt，不動 AddTransactionSheet 與其他頁面。
   - **改了什麼**：本月收支玻璃卡內的支出／收入兩欄改為兩張帶邊框的小卡（`MonthAmountBlock`，同檔 private composable）：支出用紅色系（`colorScheme.error`）＋外向箭頭圖示（Icons.AutoMirrored.Outlined.CallMade，支出行方向）；收入用綠色系（`colorScheme.primary`，品牌青綠）＋內向箭頭圖示（Icons.AutoMirrored.Outlined.CallReceived，收入入方方向）。
   - **狀態區分**：金額 > 0 時邊框與圖示用強調色、金額 FontWeight.Bold；金額 = 0 時整張小卡降飽和——邊框改 `outlineVariant`、圖示與金額改 `onSurfaceVariant`、字重恢復 Normal，深淺色模式皆可一眼分辨本月有沒有記帳。

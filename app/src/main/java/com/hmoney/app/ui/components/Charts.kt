@@ -1,6 +1,7 @@
 package com.hmoney.app.ui.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,21 +15,26 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hmoney.app.ui.common.Formats
 import com.hmoney.app.domain.logic.StatsAggregator
 import com.hmoney.app.ui.screens.stats.StatsViewModel
+import com.hmoney.app.ui.theme.CategoryPalette
+import kotlin.math.atan2
+import kotlin.math.sqrt
 
 /**
  * 統計圖表（純 Compose Canvas 實作，配合整體玻璃態設計）。
  */
 
-/** 支出分類占比：環圈圖 */
+/** 支出分類占比：環圈圖（可點擊分區，取色自共用分類色盤） */
 @Composable
 fun DonutChart(
     slices: List<StatsAggregator.CategorySlice>,
     modifier: Modifier = Modifier,
+    onSliceClick: ((StatsAggregator.CategorySlice) -> Unit)? = null,
 ) {
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
     Box(
@@ -37,7 +43,42 @@ fun DonutChart(
             .height(200.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(modifier = Modifier.height(200.dp).fillMaxWidth()) {
+        Canvas(
+            modifier = Modifier
+                .height(200.dp)
+                .fillMaxWidth()
+                .then(
+                    if (onSliceClick != null) {
+                        Modifier.pointerInput(slices) {
+                            detectTapGestures { offset ->
+                                val minDimension = minOf(size.width, size.height).toFloat()
+                                val stroke = minDimension / 4f
+                                val radius = (minDimension - stroke) / 2f
+                                val dx = offset.x - size.width / 2f
+                                val dy = offset.y - size.height / 2f
+                                val dist = sqrt(dx * dx + dy * dy)
+                                val slop = 12.dp.toPx()
+                                if (dist < radius - stroke / 2f - slop ||
+                                    dist > radius + stroke / 2f + slop
+                                ) {
+                                    return@detectTapGestures
+                                }
+                                val angle = ((atan2(dy, dx) * 180.0 / Math.PI) + 90.0 + 360.0) % 360.0
+                                var acc = 0.0
+                                slices.forEach { slice ->
+                                    acc += slice.ratio * 360.0
+                                    if (angle <= acc) {
+                                        onSliceClick.invoke(slice)
+                                        return@detectTapGestures
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Modifier
+                    },
+                ),
+        ) {
             val stroke = Stroke(width = size.minDimension / 4f)
             val radius = (size.minDimension - stroke.width) / 2f
             val topLeft = Offset(
@@ -58,7 +99,7 @@ fun DonutChart(
             slices.forEach { slice ->
                 val sweep = slice.ratio * 360f
                 drawArc(
-                    color = Color(slice.category.colorArgb),
+                    color = CategoryPalette.colorOf(slice.category.name, slice.category.colorArgb),
                     startAngle = startAngle,
                     sweepAngle = sweep,
                     useCenter = false,

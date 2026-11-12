@@ -41,7 +41,10 @@
     <!-- 統計頁 -->
     <string name="stats_title">統計</string>
     <string name="stats_description">這裡會顯示支出分類占比、收支趨勢與分類排行榜，可依日／週／月／年切換。</string>
-    <string name="stats_empty">這個區間還沒有資料</string>
+    <string name="stats_empty_title">還沒有支出資料</string>
+    <string name="stats_empty_guide">記一筆之後，這裡會顯示支出分布</string>
+    <string name="stats_empty_cta">去記一筆</string>
+    <string name="stats_slice_detail">%1$s：%2$s（占 %3$d%%）</string>
     <string name="stats_period_day">日</string>
     <string name="stats_period_week">週</string>
     <string name="stats_period_month">月</string>

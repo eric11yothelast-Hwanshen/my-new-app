@@ -1,6 +1,7 @@
 package com.hmoney.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,13 +15,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -30,11 +35,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.hmoney.app.R
@@ -42,7 +49,6 @@ import com.hmoney.app.ui.common.Formats
 import com.hmoney.app.ui.components.AiFloatingButton
 import com.hmoney.app.ui.components.AiResultDialog
 import com.hmoney.app.ui.components.DonutChart
-import com.hmoney.app.ui.components.EmptyState
 import com.hmoney.app.ui.components.GlassCard
 import com.hmoney.app.ui.components.RankRow
 import com.hmoney.app.ui.components.TrendBarChart
@@ -50,8 +56,11 @@ import com.hmoney.app.ui.components.glassSource
 import com.hmoney.app.domain.logic.StatsAggregator
 import com.hmoney.app.ui.screens.ai.AiAssistantSheet
 import com.hmoney.app.ui.screens.ai.FeatureAiViewModel
+import com.hmoney.app.ui.screens.add.AddTransactionSheet
 import com.hmoney.app.ui.screens.stats.StatsViewModel
+import com.hmoney.app.ui.theme.CategoryPalette
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.launch
 
 /**
  * 統計頁：圖表儀表板——支出分類占比（環圈）、收支趨勢（長條）、
@@ -68,6 +77,9 @@ fun StatsScreen(
     val aiState by aiViewModel.uiState.collectAsState()
     val glassState = rememberHazeState()
     var showAiSheet by remember { mutableStateOf(false) }
+    var showAddSheet by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     Box(modifier = modifier.fillMaxSize()) {
         LazyColumn(
@@ -217,18 +229,47 @@ fun StatsScreen(
                     style = MaterialTheme.typography.titleMedium,
                 )
                 if (state.categorySlices.isEmpty()) {
-                    EmptyState(
-                        icon = Icons.Outlined.PieChart,
-                        messageRes = R.string.stats_empty,
+                    StatsChartEmptyState(
+                        onAddTransaction = { showAddSheet = true },
                     )
                 } else {
-                    DonutChart(slices = state.categorySlices)
-                    state.categorySlices.take(6).forEach { slice ->
+                    val sliceDetails = state.categorySlices.associateBy({ it.category.id }) { slice ->
+                        stringResource(
+                            R.string.stats_slice_detail,
+                            slice.category.name,
+                            Formats.moneyWithCurrency(slice.cents),
+                            (slice.ratio * 100).toInt(),
+                        )
+                    }
+                    DonutChart(
+                        slices = state.categorySlices,
+                        onSliceClick = { slice ->
+                            val detail = sliceDetails[slice.category.id].orEmpty()
+                            scope.launch { snackbarHostState.showSnackbar(detail) }
+                        },
+                    )
+                    state.categorySlices.forEach { slice ->
+                        val sliceColor = CategoryPalette.colorOf(
+                            slice.category.name,
+                            slice.category.colorArgb,
+                        )
+                        val percent = (slice.ratio * 100).toInt()
+                        val detail = stringResource(
+                            R.string.stats_slice_detail,
+                            slice.category.name,
+                            Formats.moneyWithCurrency(slice.cents),
+                            percent,
+                        )
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 2.dp),
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    scope.launch { snackbarHostState.showSnackbar(detail) }
+                                }
+                                .padding(horizontal = 4.dp, vertical = 6.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -237,18 +278,26 @@ fun StatsScreen(
                                 Box(
                                     modifier = Modifier
                                         .size(10.dp)
-                                        .background(Color(slice.category.colorArgb), CircleShape),
+                                        .background(sliceColor, CircleShape),
                                 )
                                 Text(
                                     text = slice.category.name,
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
                             }
-                            Text(
-                                text = "${(slice.ratio * 100).toInt()}%",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Text(
+                                    text = Formats.moneyWithCurrency(slice.cents),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Text(
+                                    text = "$percent%",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }
@@ -335,6 +384,18 @@ fun StatsScreen(
                 .align(Alignment.BottomEnd)
                 .padding(20.dp),
         )
+
+        // 圖例／圓餅分區點擊後的分類金額詳細
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 88.dp),
+        )
+    }
+
+    if (showAddSheet) {
+        AddTransactionSheet(onDismiss = { showAddSheet = false })
     }
 
     if (showAiSheet) {
@@ -354,5 +415,42 @@ fun StatsScreen(
             onGoSettings = onGoSettings,
             onDismiss = aiViewModel::reset,
         )
+    }
+}
+
+/**
+ * 統計頁圖表空狀態：大圖示＋主標題＋引導文字＋「去記一筆」按鈕。
+ */
+@Composable
+private fun StatsChartEmptyState(
+    onAddTransaction: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp, vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.PieChart,
+            contentDescription = null,
+            modifier = Modifier.size(72.dp),
+            tint = MaterialTheme.colorScheme.outline,
+        )
+        Text(
+            text = stringResource(R.string.stats_empty_title),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            text = stringResource(R.string.stats_empty_guide),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+        Button(onClick = onAddTransaction) {
+            Text(text = stringResource(R.string.stats_empty_cta))
+        }
     }
 }
