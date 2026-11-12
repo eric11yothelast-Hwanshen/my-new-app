@@ -251,7 +251,6 @@ fun MarkdownText(
                 Text(
                     text = remember(line, codeBackground, codeForeground) {
                         buildMdAnnotatedString(line, codeBackground, codeForeground)
-                    }
                     },
                     style = style,
                     color = color,
