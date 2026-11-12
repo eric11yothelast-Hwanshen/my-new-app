@@ -21,6 +21,11 @@
     <string name="overview_see_all">查看全部</string>
     <string name="overview_empty">還沒有任何記錄，點右下角按鈕記下第一筆吧！</string>
     <string name="overview_add">快速記帳</string>
+    <string name="overview_budget_title">本月預算</string>
+    <string name="overview_budget_not_set">尚未設定預算</string>
+    <string name="overview_budget_go_set">去設定</string>
+    <string name="overview_budget_spent">已花 %1$s / 預算 %2$s，剩餘 %3$s</string>
+    <string name="overview_budget_daily">日均可用 %1$s</string>
 
     <!-- 明細頁 -->
     <string name="transactions_title">明細</string>

@@ -19,6 +19,14 @@
 
 ## Session 紀錄
 
+- **Session 14（總覽頁「本月預算進度」卡片，已完成）**：對應 SPEC 3.2（總覽）與預算功能串接，僅改 OverviewViewModel.kt、OverviewScreen.kt 與字串資源；設定頁預算設定功能與 BudgetEvaluator 完全未動，無 DB schema 變更。
+  - **改了什麼**：本月收支卡下方新增預算卡——LinearProgressIndicator（本月支出 ÷ 月總預算）＋「已花 X / 預算 Y，剩餘 Z」＋「日均可用 W」；未設定預算（總預算為 0）時顯示「尚未設定預算」＋「去設定」按鈕（沿用 OverviewScreen 既有 onGoSettings 導航參數，直接導向設定頁）。
+  - **日均可用**：剩餘金額（爆表則以 0 計）÷ 當月剩餘天數；剩餘天數＝lengthOfMonth() − dayOfMonth + 1（今天也算一天可用，避免月末除以零）。日期一律 LocalDate＋ZoneId.systemDefault()，沿用專案既有寫法，無 API 34 限定 API。
+  - **狀態色決策**：ratio < 60% 綠（colorScheme.primary）、60–90% 黃（colorScheme.tertiary）、> 90% 或爆表紅（colorScheme.error），皆從主題語意色取用，無 hardcode。爆表時剩餘金額以負數呈現（Formats.money 支援負數）。
+  - **重要決策（請勿誤改）**：未重用 BudgetEvaluator.Level——其閾值為 80%/100%（設定頁規格），本次總覽頁規格為 60%/90%，兩處規格不同；為不影響設定頁行為，總覽頁閾值判斷直接寫在 OverviewViewModel/OverviewScreen，BudgetEvaluator 保持原樣。若日後兩處閾值要統一，需先確認設定頁規格再動。
+  - **資料管線**：OverviewViewModel 注入 BudgetRepository.observeAll()（combine 第 5 個 flow），取 type == TOTAL 的金額；無新 DB 欄位、無 schema 變更。
+  - **驗證方式**：沙箱無 JDK/Android SDK（與先前 session 相同），lint＋單元測試＋雙 APK 簽署由 GitHub Actions 執行，Release 頁可下載。跨月驗證待實機改系統日期。
+
 - **Session 13（統計頁空狀態與圓餅圖視覺優化，已完成）**：對應 SPEC 3.3（統計），僅改 StatsScreen.kt、DonutChart（Charts.kt，僅統計頁使用）、字串資源，不動時間選擇器與帳戶篩選邏輯。
   - **空狀態**：新增 StatsChartEmptyState（StatsScreen.kt private composable）取代原本一行 EmptyState——置中大圖示（PieChart 72dp）＋主標題＋引導文字＋「去記一筆」按鈕；沿用 OverviewScreen 的開啟方式（showAddSheet state + AddTransactionSheet(onDismiss)），未動 AddTransactionSheet 內部結構。
   - **分類固定色盤**：新增 ui/theme/CategoryPalette.kt（單一共用常數檔），以分類名稱對應固定色（餐飲紅、交通靛藍、購物橙、娛樂紫、居家青、醫療粉、其他藍灰），取 Material 400 色階、深淺色模式皆可讀；色值與資料庫種子分類色一致，未收錄的自訂分類 fallback 沿用 DB colorArgb。DonutChart 與圖例色塊統一走 CategoryPalette.colorOf。

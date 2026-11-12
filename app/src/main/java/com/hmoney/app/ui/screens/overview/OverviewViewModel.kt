@@ -3,10 +3,12 @@ package com.hmoney.app.ui.screens.overview
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hmoney.app.domain.model.Account
+import com.hmoney.app.domain.model.BudgetType
 import com.hmoney.app.domain.model.Category
 import com.hmoney.app.domain.model.MoneyTransaction
 import com.hmoney.app.domain.model.TransactionType
 import com.hmoney.app.domain.repository.AccountRepository
+import com.hmoney.app.domain.repository.BudgetRepository
 import com.hmoney.app.domain.repository.CategoryRepository
 import com.hmoney.app.domain.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,19 +21,22 @@ import java.time.ZoneId
 import javax.inject.Inject
 
 /**
- * 總覽 ViewModel：本月收支、總餘額、帳戶餘額列與近期明細。
+ * 總覽 ViewModel：本月收支、本月預算進度、總餘額、帳戶餘額列與近期明細。
  */
 @HiltViewModel
 class OverviewViewModel @Inject constructor(
     accountRepository: AccountRepository,
     categoryRepository: CategoryRepository,
     transactionRepository: TransactionRepository,
+    budgetRepository: BudgetRepository,
 ) : ViewModel() {
 
     data class UiState(
         val monthExpenseCents: Long = 0L,
         val monthIncomeCents: Long = 0L,
         val totalBalanceCents: Long = 0L,
+        val budgetCents: Long = 0L,
+        val daysRemainingInMonth: Int = 1,
         val accountsWithBalance: List<Pair<Account, Long>> = emptyList(),
         val categories: Map<Long, Category> = emptyMap(),
         val recentTransactions: List<MoneyTransaction> = emptyList(),
@@ -42,7 +47,8 @@ class OverviewViewModel @Inject constructor(
         categoryRepository.observeAll(com.hmoney.app.domain.model.CategoryType.EXPENSE),
         categoryRepository.observeAll(com.hmoney.app.domain.model.CategoryType.INCOME),
         transactionRepository.observeTransactions(),
-    ) { accountsWithBalance, expenseCategories, incomeCategories, transactions ->
+        budgetRepository.observeAll(),
+    ) { accountsWithBalance, expenseCategories, incomeCategories, transactions, budgets ->
         val categoryMap = (expenseCategories + incomeCategories).associateBy { it.id }
         // 本月收支（轉帳不計入收支統計）
         val today = LocalDate.now()
@@ -59,6 +65,9 @@ class OverviewViewModel @Inject constructor(
                 .filter { it.type == TransactionType.INCOME }
                 .sumOf { it.amountCents },
             totalBalanceCents = accountsWithBalance.sumOf { it.second },
+            budgetCents = budgets
+                .firstOrNull { it.type == BudgetType.TOTAL }?.amountCents ?: 0L,
+            daysRemainingInMonth = today.lengthOfMonth() - today.dayOfMonth + 1,
             accountsWithBalance = accountsWithBalance,
             categories = categoryMap,
             recentTransactions = transactions.take(5),

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -138,6 +141,83 @@ fun OverviewScreen(
                             icon = Icons.AutoMirrored.Outlined.CallReceived,
                             accentColor = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+
+            // 本月預算進度卡
+            item {
+                GlassCard(
+                    glassState = glassState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.overview_budget_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        if (state.budgetCents == 0L) {
+                            TextButton(onClick = onGoSettings) {
+                                Text(text = stringResource(R.string.overview_budget_go_set))
+                            }
+                        }
+                    }
+                    if (state.budgetCents == 0L) {
+                        Text(
+                            text = stringResource(R.string.overview_budget_not_set),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        val ratio = state.monthExpenseCents.toFloat() / state.budgetCents
+                        val remainingCents = state.budgetCents - state.monthExpenseCents
+                        val dailyAvailableCents = remainingCents.coerceAtLeast(0L) /
+                            state.daysRemainingInMonth
+                        val statusColor = when {
+                            ratio > 0.9f -> MaterialTheme.colorScheme.error
+                            ratio >= 0.6f -> MaterialTheme.colorScheme.tertiary
+                            else -> MaterialTheme.colorScheme.primary
+                        }
+                        LinearProgressIndicator(
+                            progress = { ratio.coerceIn(0f, 1f) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp)),
+                            color = statusColor,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        )
+                        Text(
+                            text = stringResource(
+                                R.string.overview_budget_spent,
+                                Formats.moneyWithCurrency(state.monthExpenseCents),
+                                Formats.moneyWithCurrency(state.budgetCents),
+                                Formats.moneyWithCurrency(remainingCents),
+                            ),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = if (ratio > 0.9f) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                        Text(
+                            text = stringResource(
+                                R.string.overview_budget_daily,
+                                Formats.moneyWithCurrency(dailyAvailableCents),
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp),
                         )
                     }
                 }
