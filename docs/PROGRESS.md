@@ -19,6 +19,12 @@
 
 ## Session 紀錄
 
+- **Session 27（AI 助手輸入框被鍵盤遮擋最終修復：weight(1f) 取代固定高度，已完成）**：只動 AiAssistantSheet.kt，其他檔案未碰。
+  - **根因（請勿誤改警示）**：訊息列表用固定高度 `heightIn(min = 200.dp, max = 420.dp)` 而非 `weight(1f)`——訊息一多列表撑高，Column 總高超過鍵盤彈出後的可見空間，Column 本身不捲動，底部輸入列被推出畫面外。imePadding 位置沒問題，**高度策略才是根因；勿把固定 heightIn(max) 加回來**。
+  - **修復**：訊息 LazyColumn 高度改 `Modifier.weight(1f).heightIn(min = 160.dp)`——Column 內有 weight 子項後會填滿 sheet 剩餘高度，鍵盤彈出（imePadding 生效）時列表自動壓縮，輸入列永遠可見；移除 max = 420.dp 固定上限。空狀態 min = 160.dp 不會讓 sheet 空一大段。Column 底部 padding 由 20dp 縮為 12dp（輸入列與 IME 間距）。
+  - **自動捲底強化**：LaunchedEffect 觀察鍵改為 `(state.messages.size, state.loading, imeBottom)`，其中 `imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)`——鍵盤彈出時也捲到最新一則（需 @OptIn ExperimentalLayoutApi）。
+  - **驗證方式**：沙箱無 JDK/Android SDK，括號平衡以 Python 檢查；lint＋單元測試＋雙 APK 由 GitHub Actions 執行；實機請驗證連問 3–5 則後點輸入框，輸入框完整可見、最新訊息可見、橫豎屏正常。
+
 - **Session 26（三項 UI 修復：明細期間列壓縮、AI 對話鍵盤遮擋、設定移出底部分頁，已完成）**：只動 UI 顯示層與 Manifest，不動資料層、AddTransactionSheet 捲動結構與 CategoryGrid。
   - **Bug 1（期間選定後批次分析按鈕被壓縮，請勿誤改）**：根因＝「期間篩選與批次分析」同列（普通 Row），期間 chip 完整日期字串把「全部」與「批次分析」擠壓截斷。修復＝拆成兩列（外層 `Column(verticalArrangement = Arrangement.spacedBy(8.dp))`）：第一列期間 FilterChip＋「全部」TextButton；第二列批次分析 AssistChip（永遠完整可見可點）。期間 chip label 改短格式 `11/12–11/23`（Formats 新增 `shortDate(epochMillis)`，例：11/12）＋`widthIn(max = 160.dp)`＋`maxLines = 1`＋`TextOverflow.Ellipsis`。**勿把兩列合回單一 Row、勿移除 widthIn/Ellipsis**——否則長日期又會擠壓批次分析按鈕。選定日期後點 chip 重新開啟既有期間對話框，流程不變。
   - **Bug 2（AI 對話輸入框被鍵盤遮擋，請勿誤改）**：修法四件套缺一不可——(1) AndroidManifest MainActivity 加 `android:windowSoftInputMode="adjustResize"`（edge-to-edge 專案搭配 imePadding 的前提）；(2) AiAssistantSheet 外層 Column 的 `navigationBarsPadding().imePadding()` 保留（ModalBottomSheet content 直接內層）；(3) LazyColumn 改 `rememberLazyListState()`＋`LaunchedEffect(state.messages.size, state.loading)` 自動 `animateScrollToItem(totalItemsCount - 1)`（鍵盤彈出與新訊息都捲到底）；(4) 訊息列表高度 `heightIn(min = 200.dp, max = 420.dp)`（鍵盤彈出時列表壓縮而非輸入列被頂出）。**勿依賴特定鍵盤高度 hardcode**——跨廠牌（Samsung/Gboard）自適應靠 insets 系統而非固定 dp。
