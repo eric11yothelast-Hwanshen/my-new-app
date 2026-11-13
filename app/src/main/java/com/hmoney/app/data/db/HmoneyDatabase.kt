@@ -9,6 +9,7 @@ import com.hmoney.app.data.db.dao.AiAnalysisDao
 import com.hmoney.app.data.db.dao.BudgetDao
 import com.hmoney.app.data.db.dao.CategoryDao
 import com.hmoney.app.data.db.dao.ChatMessageDao
+import com.hmoney.app.data.db.dao.ItemDao
 import com.hmoney.app.data.db.dao.SessionDao
 import com.hmoney.app.data.db.dao.RecurringTransactionDao
 import com.hmoney.app.data.db.dao.TransactionDao
@@ -18,6 +19,7 @@ import com.hmoney.app.data.db.entity.BudgetEntity
 import com.hmoney.app.data.db.entity.CategoryEntity
 import com.hmoney.app.data.db.entity.ChatMessageEntity
 import com.hmoney.app.data.db.entity.ChatSessionEntity
+import com.hmoney.app.data.db.entity.ItemEntity
 import com.hmoney.app.data.db.entity.RecurringTransactionEntity
 import com.hmoney.app.data.db.entity.TransactionEntity
 
@@ -35,8 +37,9 @@ import com.hmoney.app.data.db.entity.TransactionEntity
         AiAnalysisEntity::class,
         ChatSessionEntity::class,
         ChatMessageEntity::class,
+        ItemEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class HmoneyDatabase : RoomDatabase() {
@@ -49,6 +52,7 @@ abstract class HmoneyDatabase : RoomDatabase() {
     abstract fun aiAnalysisDao(): AiAnalysisDao
     abstract fun sessionDao(): SessionDao
     abstract fun chatMessageDao(): ChatMessageDao
+    abstract fun itemDao(): ItemDao
 
     companion object {
         /** 首次安裝時的種子資料：預設帳戶與內建分類 */
@@ -153,8 +157,41 @@ abstract class HmoneyDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * 版本 4 → 5（1.3.0 資料層擴充）：
+         * transactions 新增 source（預設 'manual'）、barcode、receiptImagePath 三欄；
+         * 新增 items 物品管理表（purchaseTransactionId FK 刪除交易時設 NULL）。
+         * SQL 以常數定義供 JVM 單元測試驗證遷移邏輯。
+         */
+        internal val MIGRATION_4_5_SQL = listOf(
+            "ALTER TABLE `transactions` ADD COLUMN `source` TEXT NOT NULL DEFAULT 'manual'",
+            "ALTER TABLE `transactions` ADD COLUMN `barcode` TEXT",
+            "ALTER TABLE `transactions` ADD COLUMN `receiptImagePath` TEXT",
+            "CREATE TABLE IF NOT EXISTS `items`" +
+                "(`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL," +
+                " `name` TEXT NOT NULL," +
+                " `barcode` TEXT," +
+                " `storageLocation` TEXT," +
+                " `quantity` INTEGER NOT NULL DEFAULT 1," +
+                " `expiryDateEpochMillis` INTEGER," +
+                " `purchaseTransactionId` INTEGER," +
+                " `createdAtEpochMillis` INTEGER NOT NULL," +
+                " `updatedAtEpochMillis` INTEGER NOT NULL," +
+                " FOREIGN KEY(`purchaseTransactionId`) REFERENCES `transactions`(`id`)" +
+                " ON UPDATE NO ACTION ON DELETE SET NULL)",
+            "CREATE INDEX IF NOT EXISTS `index_items_barcode` ON `items` (`barcode`)",
+            "CREATE INDEX IF NOT EXISTS `index_items_expiryDateEpochMillis` ON `items` (`expiryDateEpochMillis`)",
+        )
+
+        /** 版本 4 → 5：AI 記帳來源欄位與物品管理表 */
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                MIGRATION_4_5_SQL.forEach { sql -> db.execSQL(sql) }
+            }
+        }
+
         /** 未來版本升級時擴充此清單 */
         val MIGRATIONS: Array<Migration> =
-            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
     }
 }

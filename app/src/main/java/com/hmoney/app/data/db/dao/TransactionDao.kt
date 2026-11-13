@@ -32,6 +32,10 @@ interface TransactionDao {
         type: String? = null,
     ): Flow<List<TransactionEntity>>
 
+    /** 以條碼查歷史交易（依日期新→舊排序），供掃描記帳時參考 */
+    @Query("SELECT * FROM transactions WHERE barcode = :barcode ORDER BY dateEpochMillis DESC, id DESC")
+    fun observeByBarcode(barcode: String): Flow<List<TransactionEntity>>
+
     @Query("SELECT * FROM transactions WHERE id = :id")
     suspend fun getById(id: Long): TransactionEntity?
 

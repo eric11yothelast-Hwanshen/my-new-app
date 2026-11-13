@@ -49,6 +49,24 @@ interface SettingsRepository {
 
     suspend fun setAiCurrentSessionId(sessionId: Long)
 
+    /** 1.3.0 功能開關（預設全開；之後由設定頁 UI 接上） */
+    data class FeatureFlagSettings(
+        val aiNlEntryEnabled: Boolean = true,
+        val aiImageEntryEnabled: Boolean = true,
+        val barcodeEnabled: Boolean = true,
+        val inventoryEnabled: Boolean = true,
+    )
+
+    fun observeFeatureFlags(): Flow<FeatureFlagSettings>
+
+    suspend fun setAiNlEntryEnabled(enabled: Boolean)
+
+    suspend fun setAiImageEntryEnabled(enabled: Boolean)
+
+    suspend fun setBarcodeEnabled(enabled: Boolean)
+
+    suspend fun setInventoryEnabled(enabled: Boolean)
+
     /** 總覽洞察已讀：最後查看的洞察時間（晚於它的新洞察才顯示圓點） */
     fun observeLastSeenInsight(): Flow<Long>
 

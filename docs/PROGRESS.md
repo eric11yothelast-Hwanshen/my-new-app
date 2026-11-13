@@ -19,6 +19,16 @@
 
 ## Session 紀錄
 
+- **Session 38（1.3.0 第一階段：資料層擴充，DB v4 → v5，已完成）**：里程碑「AI 記帳（自然語言／圖片／條碼寫入）＋物品管理」啟動，本 session 僅做資料層，不碰任何 ui/ 檔案、不做任何 AI 呼叫、不加任何新第三方依賴（掃描器／相機留待之後 session）。
+  - **TransactionEntity 三新欄位**：source（TEXT NOT NULL，遷移預設 'manual'；語意值僅四個：manual = 手動輸入、ai_text = 自然語言記帳、ai_image = 圖片記帳、barcode = 條碼記帳）、barcode（TEXT nullable，商品條碼）、receiptImagePath（TEXT nullable，憑證圖片路徑，之後 session 使用）。Domain 層對應 TransactionSource enum（MANUAL／AI_TEXT／AI_IMAGE／BARCODE），mapper 對未知字串容錯為 MANUAL，MoneyTransaction 新欄位皆有預設值，既有 UI 呼叫處零改動。
+  - **items 新表（物品管理）**：id PK autoGenerate、name NOT NULL、barcode nullable、storageLocation nullable、quantity INTEGER NOT NULL DEFAULT 1、expiryDateEpochMillis nullable、purchaseTransactionId nullable（FK transactions.id，onDelete = SET_NULL——交易刪除時物品保留、關聯歸 NULL）、createdAtEpochMillis／updatedAtEpochMillis；索引：barcode、expiryDateEpochMillis。對應 Item domain model（quantity 不可為負、名稱不可空白）、ItemDao（observeAll／findByBarcode／findById／insert／update／delete）、ItemRepository ＋ ItemRepositoryImpl（@Binds 綁定於 RepositoryModule）。
+  - **TransactionDao 補方法**：observeByBarcode(barcode)（依日期新→舊排序的歷史交易），TransactionRepository 對應 observeTransactionsByBarcode。
+  - **DataStore 四個功能開關（SettingsRepository，預設皆 true，本 session 不接 UI）**：ai_nl_entry_enabled（自然語言記帳）、ai_image_entry_enabled（圖片記帳）、barcode_enabled（條碼）、inventory_enabled（物品管理）；key 常數與純函式 resolveFeatureFlags(prefs) 定義於 SettingsRepositoryImpl companion（JVM 單元測試直接驗證讀寫與預設值），observeFeatureFlags ＋ 四個 setter。
+  - **遷移與 schema**：MIGRATION_4_5 為標準 Migration 物件（ALTER TABLE 加三欄＋CREATE TABLE items＋兩索引），SQL 定義為 MIGRATION_4_5_SQL 常數供單元測試結構驗證；資料庫版本 4 → 5，exportSchema = true，CI 於建置後將 app/schemas/ 的 v5 JSON commit 回倉庫。舊版 APK（DB v4）覆蓋升級不丟資料（既有欄位不動、新欄位給預設值）。
+  - **單元測試**：ItemMapperTest（Item entity↔domain 往返、交易三新欄位映射與未知 source 容錯）、Migration4to5SqlTest（遷移 SQL 七條語句結構、source 預設 'manual'、items 欄位齊全、quantity 預設 1、FK SET_NULL、雙索引、無破壞性語句）、FeatureFlagsTest（四開關預設 true、寫入 false 讀回 false、單一開關獨立、key 命名）。
+  - **請勿誤改**：(1) source 欄位四個語意值（manual／ai_text／ai_image／barcode）是之後 AI 寫入來源標記的基礎，不得未經規劃擴充語意；(2) fallbackToDestructiveMigration 禁用（既有鐵律重申，遷移一律用標準 Migration 物件）；(3) 四個開關之後由設定頁 UI 接上，本 session 不接，勿提前動 ui/。
+  - **驗證方式**：沙箱無 JDK/Android SDK（與先前 session 相同），單元測試＋lint＋雙 APK 簽署由 GitHub Actions 執行。
+
 - **Session 37（settings_version_footer 錯字修正：U+5E37 → U+5E7B，已完成）**：Session 36 的版本資訊字串「幻帳」誤植為「帷帳」（帷 U+5E37）——上輪排查時誤把 U+5E37 當成「幻」，誤判無錯字；經使用者指正後以 Unihan 官方資料查證：U+5E37 kMandarin=wéi（tent; curtain, screen）＝帷、U+5E7B kMandarin=huàn（illusion, fantasy, mirage）＝幻，確認錯字存在並修正。
   - **修正**：strings.xml 的 settings_version_footer 第一字元 U+5E37（帷）→ U+5E7B（幻），僅動該字元；同一行註解與 %1$s／%2$d 格式參數未動。修改後以碼點驗證輸出 ['0x5e7b', '0x5e33', ...]。
   - **教訓（請勿重蹈）**：判斷相似字元一律以碼點對照 Unicode／Unihan 表（kMandarin 讀音＋kDefinition 釋義），勿憑印象或輸出轉義猜測字形；CJK 擴充名稱（CJK UNIFIED IDEOGRAPH-XXXX）不含讀音，不能作為判定依據。

@@ -22,6 +22,9 @@ data class MoneyTransaction(
     val dateEpochMillis: Long,
     val note: String = "",
     val tags: List<String> = emptyList(),
+    val source: TransactionSource = TransactionSource.MANUAL,
+    val barcode: String? = null,
+    val receiptImagePath: String? = null,
 ) {
     init {
         // 關鍵防呆：金額與手續費不可為負
