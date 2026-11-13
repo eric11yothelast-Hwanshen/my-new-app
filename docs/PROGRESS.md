@@ -19,6 +19,10 @@
 
 ## Session 紀錄
 
+- **Session 37（settings_version_footer 錯字修正：U+5E37 → U+5E7B，已完成）**：Session 36 的版本資訊字串「幻帳」誤植為「帷帳」（帷 U+5E37）——上輪排查時誤把 U+5E37 當成「幻」，誤判無錯字；經使用者指正後以 Unihan 官方資料查證：U+5E37 kMandarin=wéi（tent; curtain, screen）＝帷、U+5E7B kMandarin=huàn（illusion, fantasy, mirage）＝幻，確認錯字存在並修正。
+  - **修正**：strings.xml 的 settings_version_footer 第一字元 U+5E37（帷）→ U+5E7B（幻），僅動該字元；同一行註解與 %1$s／%2$d 格式參數未動。修改後以碼點驗證輸出 ['0x5e7b', '0x5e33', ...]。
+  - **教訓（請勿重蹈）**：判斷相似字元一律以碼點對照 Unicode／Unihan 表（kMandarin 讀音＋kDefinition 釋義），勿憑印象或輸出轉義猜測字形；CJK 擴充名稱（CJK UNIFIED IDEOGRAPH-XXXX）不含讀音，不能作為判定依據。
+  - **驗證方式**：沙箱無 JDK/Android SDK（與先前 session 相同），單元測試＋lint＋雙 APK 簽署由 GitHub Actions 執行。
 - **Session 36（設定頁尾端版本資訊：versionName + versionCode，已完成）**：曾發生「使用者拿舊 APK 實測、誤判修復失敗」的事故——在設定頁清單最尾端（備份與還原 section 之後，不新開 section）加一個不可點擊的小字版本資訊「幻帳 1.2.0 (build <流水號>)」，實測時可直接對照 build 版本。
   - **版本取得**：context.packageManager.getPackageInfo(context.packageName, 0)，versionName ＋ versionCode，VersionFooter composable 內 remember 取一次；versionCode 以 Build.VERSION_CODES.P 分界取 longVersionCode／versionCode（minSdk 26 相容）。
   - **樣式**：bodySmall＋onSurfaceVariant（colorScheme 取用）＋置中＋上下 8dp padding；不可點擊、無互動。
