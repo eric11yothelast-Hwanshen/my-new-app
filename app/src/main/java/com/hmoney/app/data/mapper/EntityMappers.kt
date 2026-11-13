@@ -67,7 +67,7 @@ fun TransactionEntity.toDomain(): MoneyTransaction = MoneyTransaction(
     dateEpochMillis = dateEpochMillis,
     note = note,
     tags = tags.split(',').map { it.trim() }.filter { it.isNotEmpty() },
-    source = runCatching { TransactionSource.valueOf(source) }.getOrDefault(TransactionSource.MANUAL),
+    source = runCatching { TransactionSource.valueOf(source.uppercase()) }.getOrDefault(TransactionSource.MANUAL),
     barcode = barcode,
     receiptImagePath = receiptImagePath,
 )
@@ -83,7 +83,7 @@ fun MoneyTransaction.toEntity(): TransactionEntity = TransactionEntity(
     dateEpochMillis = dateEpochMillis,
     note = note,
     tags = tags.joinToString(","),
-    source = source.name,
+    source = source.name.lowercase(),
     barcode = barcode,
     receiptImagePath = receiptImagePath,
 )
