@@ -106,6 +106,8 @@ class AiViewModel @Inject constructor(
         AiError.QuotaExceeded -> R.string.ai_error_quota
         is AiError.Http -> R.string.ai_error_http
         AiError.Parse -> R.string.ai_error_parse
+        // 專屬字串之後 session 再接（S41/S42），先以通用錯誤文字回饋
+        AiError.VisionUnsupported -> R.string.ai_error_http
     }
 
     private companion object {
