@@ -31,6 +31,20 @@ jobs:
       - name: Run unit tests
         run: ./gradlew testDebugUnitTest --no-daemon
 
+      # Room schema 匯出（v5 起）：建置時產生的 schema JSON commit 回倉庫，供未來遷移比對
+      - name: Commit Room schemas
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add app/schemas/
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: 匯出 Room schema JSON（建置產物，v5）"
+            git pull --rebase
+            git push
+          fi
+
       - name: Lint（Error 等級問題會讓建置失敗）
         run: |
           ./gradlew lintDebug --no-daemon || {

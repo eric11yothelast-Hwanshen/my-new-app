@@ -22,6 +22,9 @@ interface TransactionRepository {
 
     suspend fun getTransaction(id: Long): MoneyTransaction?
 
+    /** 以條碼觀察歷史交易（依日期新→舊排序），供條碼記帳時參考 */
+    fun observeTransactionsByBarcode(barcode: String): Flow<List<MoneyTransaction>>
+
     /** 新增交易（含完整防呆驗證） */
     suspend fun addTransaction(transaction: MoneyTransaction): Long
 

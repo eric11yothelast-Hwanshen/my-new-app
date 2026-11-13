@@ -44,6 +44,9 @@ class TransactionRepositoryImpl @Inject constructor(
     override suspend fun getTransaction(id: Long): MoneyTransaction? =
         transactionDao.getById(id)?.toDomain()
 
+    override fun observeTransactionsByBarcode(barcode: String): Flow<List<MoneyTransaction>> =
+        transactionDao.observeByBarcode(barcode.trim()).map { list -> list.map { it.toDomain() } }
+
     override suspend fun addTransaction(transaction: MoneyTransaction): Long {
         validate(transaction)
         return transactionDao.insert(transaction.toEntity())

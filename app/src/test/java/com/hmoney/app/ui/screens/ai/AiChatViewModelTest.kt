@@ -251,6 +251,12 @@ private class FakeSettingsRepository : SettingsRepository {
         aiSettings.update { it.copy(currentSessionId = sessionId) }
     }
 
+    override fun observeFeatureFlags(): Flow<SettingsRepository.FeatureFlagSettings> = emptyFlow()
+    override suspend fun setAiNlEntryEnabled(enabled: Boolean) = Unit
+    override suspend fun setAiImageEntryEnabled(enabled: Boolean) = Unit
+    override suspend fun setBarcodeEnabled(enabled: Boolean) = Unit
+    override suspend fun setInventoryEnabled(enabled: Boolean) = Unit
+
     private val lastSeen = MutableStateFlow(0L)
     override fun observeLastSeenInsight(): Flow<Long> = lastSeen
     override suspend fun setLastSeenInsightEpochMillis(epochMillis: Long) {

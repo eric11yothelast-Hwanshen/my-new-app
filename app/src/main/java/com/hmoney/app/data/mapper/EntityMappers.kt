@@ -2,11 +2,14 @@ package com.hmoney.app.data.mapper
 
 import com.hmoney.app.data.db.entity.AccountEntity
 import com.hmoney.app.data.db.entity.CategoryEntity
+import com.hmoney.app.data.db.entity.ItemEntity
 import com.hmoney.app.data.db.entity.TransactionEntity
 import com.hmoney.app.domain.model.Account
 import com.hmoney.app.domain.model.Category
 import com.hmoney.app.domain.model.CategoryType
+import com.hmoney.app.domain.model.Item
 import com.hmoney.app.domain.model.MoneyTransaction
+import com.hmoney.app.domain.model.TransactionSource
 import com.hmoney.app.domain.model.TransactionType
 
 // Entity ↔ Domain 對應：DB 字串列舉在此集中轉換
@@ -64,6 +67,9 @@ fun TransactionEntity.toDomain(): MoneyTransaction = MoneyTransaction(
     dateEpochMillis = dateEpochMillis,
     note = note,
     tags = tags.split(',').map { it.trim() }.filter { it.isNotEmpty() },
+    source = runCatching { TransactionSource.valueOf(source) }.getOrDefault(TransactionSource.MANUAL),
+    barcode = barcode,
+    receiptImagePath = receiptImagePath,
 )
 
 fun MoneyTransaction.toEntity(): TransactionEntity = TransactionEntity(
@@ -77,4 +83,31 @@ fun MoneyTransaction.toEntity(): TransactionEntity = TransactionEntity(
     dateEpochMillis = dateEpochMillis,
     note = note,
     tags = tags.joinToString(","),
+    source = source.name,
+    barcode = barcode,
+    receiptImagePath = receiptImagePath,
+)
+
+fun ItemEntity.toDomain(): Item = Item(
+    id = id,
+    name = name,
+    barcode = barcode,
+    storageLocation = storageLocation,
+    quantity = quantity,
+    expiryDateEpochMillis = expiryDateEpochMillis,
+    purchaseTransactionId = purchaseTransactionId,
+    createdAtEpochMillis = createdAtEpochMillis,
+    updatedAtEpochMillis = updatedAtEpochMillis,
+)
+
+fun Item.toEntity(): ItemEntity = ItemEntity(
+    id = id,
+    name = name,
+    barcode = barcode,
+    storageLocation = storageLocation,
+    quantity = quantity,
+    expiryDateEpochMillis = expiryDateEpochMillis,
+    purchaseTransactionId = purchaseTransactionId,
+    createdAtEpochMillis = createdAtEpochMillis,
+    updatedAtEpochMillis = updatedAtEpochMillis,
 )

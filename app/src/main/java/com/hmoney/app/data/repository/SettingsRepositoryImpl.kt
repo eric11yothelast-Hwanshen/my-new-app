@@ -1,6 +1,7 @@
 package com.hmoney.app.data.repository
 
 import android.content.Context
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -129,6 +130,33 @@ class SettingsRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun observeFeatureFlags(): Flow<SettingsRepository.FeatureFlagSettings> =
+        context.settingsDataStore.data.map(::resolveFeatureFlags)
+
+    override suspend fun setAiNlEntryEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[AI_NL_ENTRY_ENABLED_KEY] = enabled
+        }
+    }
+
+    override suspend fun setAiImageEntryEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[AI_IMAGE_ENTRY_ENABLED_KEY] = enabled
+        }
+    }
+
+    override suspend fun setBarcodeEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[BARCODE_ENABLED_KEY] = enabled
+        }
+    }
+
+    override suspend fun setInventoryEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[INVENTORY_ENABLED_KEY] = enabled
+        }
+    }
+
     override fun observeLastSeenInsight(): Flow<Long> =
         context.settingsDataStore.data.map { prefs ->
             prefs[lastSeenInsightKey] ?: 0L
@@ -138,5 +166,24 @@ class SettingsRepositoryImpl @Inject constructor(
         context.settingsDataStore.edit { prefs ->
             prefs[lastSeenInsightKey] = epochMillis
         }
+    }
+
+    companion object {
+        /** 開關 key 常數（供測試與之後設定頁 UI 使用） */
+        val AI_NL_ENTRY_ENABLED_KEY = booleanPreferencesKey("ai_nl_entry_enabled")
+        val AI_IMAGE_ENTRY_ENABLED_KEY = booleanPreferencesKey("ai_image_entry_enabled")
+        val BARCODE_ENABLED_KEY = booleanPreferencesKey("barcode_enabled")
+        val INVENTORY_ENABLED_KEY = booleanPreferencesKey("inventory_enabled")
+
+        /** 純函式解析：未儲存的開關一律回傳預設值 true（JVM 單元測試直接驗證） */
+        fun resolveFeatureFlags(
+            prefs: Preferences,
+        ): SettingsRepository.FeatureFlagSettings =
+            SettingsRepository.FeatureFlagSettings(
+                aiNlEntryEnabled = prefs[AI_NL_ENTRY_ENABLED_KEY] ?: true,
+                aiImageEntryEnabled = prefs[AI_IMAGE_ENTRY_ENABLED_KEY] ?: true,
+                barcodeEnabled = prefs[BARCODE_ENABLED_KEY] ?: true,
+                inventoryEnabled = prefs[INVENTORY_ENABLED_KEY] ?: true,
+            )
     }
 }

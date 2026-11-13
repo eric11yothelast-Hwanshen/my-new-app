@@ -52,4 +52,7 @@ object DatabaseModule {
 
     @Provides
     fun provideChatMessageDao(database: HmoneyDatabase) = database.chatMessageDao()
+
+    @Provides
+    fun provideItemDao(database: HmoneyDatabase) = database.itemDao()
 }

@@ -1,0 +1,62 @@
+package com.hmoney.app.data.repository
+
+import androidx.datastore.preferences.core.preferencesOf
+import com.hmoney.app.data.repository.SettingsRepositoryImpl.AI_IMAGE_ENTRY_ENABLED_KEY
+import com.hmoney.app.data.repository.SettingsRepositoryImpl.AI_NL_ENTRY_ENABLED_KEY
+import com.hmoney.app.data.repository.SettingsRepositoryImpl.BARCODE_ENABLED_KEY
+import com.hmoney.app.data.repository.SettingsRepositoryImpl.INVENTORY_ENABLED_KEY
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+/**
+ * 1.3.0 功能開關 DataStore 讀寫測試（Session 38）：
+ * 未儲存時四個開關預設皆為 true；寫入 false 後讀回 false（key 對應正確）。
+ */
+class FeatureFlagsTest {
+
+    @Test
+    fun `未儲存任何開關時預設全為 true`() {
+        val flags = SettingsRepositoryImpl.resolveFeatureFlags(preferencesOf())
+        assertTrue(flags.aiNlEntryEnabled)
+        assertTrue(flags.aiImageEntryEnabled)
+        assertTrue(flags.barcodeEnabled)
+        assertTrue(flags.inventoryEnabled)
+    }
+
+    @Test
+    fun `寫入的開關值能以正確 key 讀回`() {
+        val flags = SettingsRepositoryImpl.resolveFeatureFlags(
+            preferencesOf(
+                AI_NL_ENTRY_ENABLED_KEY to false,
+                AI_IMAGE_ENTRY_ENABLED_KEY to false,
+                BARCODE_ENABLED_KEY to false,
+                INVENTORY_ENABLED_KEY to false,
+            ),
+        )
+        assertFalse(flags.aiNlEntryEnabled)
+        assertFalse(flags.aiImageEntryEnabled)
+        assertFalse(flags.barcodeEnabled)
+        assertFalse(flags.inventoryEnabled)
+    }
+
+    @Test
+    fun `只關閉單一開關其餘保持預設 true`() {
+        val flags = SettingsRepositoryImpl.resolveFeatureFlags(
+            preferencesOf(BARCODE_ENABLED_KEY to false),
+        )
+        assertTrue(flags.aiNlEntryEnabled)
+        assertTrue(flags.aiImageEntryEnabled)
+        assertFalse(flags.barcodeEnabled)
+        assertTrue(flags.inventoryEnabled)
+    }
+
+    @Test
+    fun `開關 key 命名與規格一致`() {
+        assertEquals("ai_nl_entry_enabled", AI_NL_ENTRY_ENABLED_KEY.name)
+        assertEquals("ai_image_entry_enabled", AI_IMAGE_ENTRY_ENABLED_KEY.name)
+        assertEquals("barcode_enabled", BARCODE_ENABLED_KEY.name)
+        assertEquals("inventory_enabled", INVENTORY_ENABLED_KEY.name)
+    }
+}
