@@ -1,10 +1,7 @@
 package com.hmoney.app.data.repository
 
 import androidx.datastore.preferences.core.preferencesOf
-import com.hmoney.app.data.repository.SettingsRepositoryImpl.AI_IMAGE_ENTRY_ENABLED_KEY
-import com.hmoney.app.data.repository.SettingsRepositoryImpl.AI_NL_ENTRY_ENABLED_KEY
-import com.hmoney.app.data.repository.SettingsRepositoryImpl.BARCODE_ENABLED_KEY
-import com.hmoney.app.data.repository.SettingsRepositoryImpl.INVENTORY_ENABLED_KEY
+import com.hmoney.app.data.repository.SettingsRepositoryImpl
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -29,10 +26,10 @@ class FeatureFlagsTest {
     fun `寫入的開關值能以正確 key 讀回`() {
         val flags = SettingsRepositoryImpl.resolveFeatureFlags(
             preferencesOf(
-                AI_NL_ENTRY_ENABLED_KEY to false,
-                AI_IMAGE_ENTRY_ENABLED_KEY to false,
-                BARCODE_ENABLED_KEY to false,
-                INVENTORY_ENABLED_KEY to false,
+                SettingsRepositoryImpl.AI_NL_ENTRY_ENABLED_KEY to false,
+                SettingsRepositoryImpl.AI_IMAGE_ENTRY_ENABLED_KEY to false,
+                SettingsRepositoryImpl.BARCODE_ENABLED_KEY to false,
+                SettingsRepositoryImpl.INVENTORY_ENABLED_KEY to false,
             ),
         )
         assertFalse(flags.aiNlEntryEnabled)
@@ -44,7 +41,7 @@ class FeatureFlagsTest {
     @Test
     fun `只關閉單一開關其餘保持預設 true`() {
         val flags = SettingsRepositoryImpl.resolveFeatureFlags(
-            preferencesOf(BARCODE_ENABLED_KEY to false),
+            preferencesOf(SettingsRepositoryImpl.BARCODE_ENABLED_KEY to false),
         )
         assertTrue(flags.aiNlEntryEnabled)
         assertTrue(flags.aiImageEntryEnabled)
@@ -54,9 +51,9 @@ class FeatureFlagsTest {
 
     @Test
     fun `開關 key 命名與規格一致`() {
-        assertEquals("ai_nl_entry_enabled", AI_NL_ENTRY_ENABLED_KEY.name)
-        assertEquals("ai_image_entry_enabled", AI_IMAGE_ENTRY_ENABLED_KEY.name)
-        assertEquals("barcode_enabled", BARCODE_ENABLED_KEY.name)
-        assertEquals("inventory_enabled", INVENTORY_ENABLED_KEY.name)
+        assertEquals("ai_nl_entry_enabled", SettingsRepositoryImpl.AI_NL_ENTRY_ENABLED_KEY.name)
+        assertEquals("ai_image_entry_enabled", SettingsRepositoryImpl.AI_IMAGE_ENTRY_ENABLED_KEY.name)
+        assertEquals("barcode_enabled", SettingsRepositoryImpl.BARCODE_ENABLED_KEY.name)
+        assertEquals("inventory_enabled", SettingsRepositoryImpl.INVENTORY_ENABLED_KEY.name)
     }
 }

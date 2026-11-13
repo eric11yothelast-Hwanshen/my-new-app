@@ -1,6 +1,6 @@
 package com.hmoney.app.data.db
 
-import com.hmoney.app.data.db.HmoneyDatabase.MIGRATION_4_5_SQL
+import com.hmoney.app.data.db.HmoneyDatabase
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,12 +14,12 @@ class Migration4to5SqlTest {
 
     @Test
     fun `遷移共產生 7 條 SQL 語句`() {
-        assertEquals(7, MIGRATION_4_5_SQL.size)
+        assertEquals(7, HmoneyDatabase.MIGRATION_4_5_SQL.size)
     }
 
     @Test
     fun `transactions 新增三欄且 source 預設 manual`() {
-        val alterStatements = MIGRATION_4_5_SQL.filter { it.startsWith("ALTER TABLE") }
+        val alterStatements = HmoneyDatabase.MIGRATION_4_5_SQL.filter { it.startsWith("ALTER TABLE") }
         assertEquals(3, alterStatements.size)
         assertTrue(alterStatements.any { it.contains("ADD COLUMN `source` TEXT NOT NULL DEFAULT 'manual'") })
         assertTrue(alterStatements.any { it.contains("ADD COLUMN `barcode` TEXT") })
@@ -28,7 +28,7 @@ class Migration4to5SqlTest {
 
     @Test
     fun `items 表欄位齊全且 quantity 預設 1`() {
-        val createTable = MIGRATION_4_5_SQL.first { it.startsWith("CREATE TABLE IF NOT EXISTS `items`") }
+        val createTable = HmoneyDatabase.MIGRATION_4_5_SQL.first { it.startsWith("CREATE TABLE IF NOT EXISTS `items`") }
         listOf(
             "`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL",
             "`name` TEXT NOT NULL",
@@ -46,7 +46,7 @@ class Migration4to5SqlTest {
 
     @Test
     fun `items 建立 barcode 與到期日兩個索引`() {
-        val indexStatements = MIGRATION_4_5_SQL.filter { it.startsWith("CREATE INDEX") }
+        val indexStatements = HmoneyDatabase.MIGRATION_4_5_SQL.filter { it.startsWith("CREATE INDEX") }
         assertEquals(2, indexStatements.size)
         assertTrue(indexStatements.any { it.contains("index_items_barcode") && it.contains("(`barcode`)") })
         assertTrue(indexStatements.any { it.contains("index_items_expiryDateEpochMillis") && it.contains("(`expiryDateEpochMillis`)") })
@@ -54,7 +54,7 @@ class Migration4to5SqlTest {
 
     @Test
     fun `遷移不觸及既有欄位的破壞性語句`() {
-        MIGRATION_4_5_SQL.forEach { sql ->
+        HmoneyDatabase.MIGRATION_4_5_SQL.forEach { sql ->
             assertTrue("遷移不得包含破壞性語句：$sql", !sql.contains("DROP TABLE", ignoreCase = true))
             assertTrue("遷移不得修改既有欄位：$sql", !sql.trim().startsWith("UPDATE", ignoreCase = true))
         }
