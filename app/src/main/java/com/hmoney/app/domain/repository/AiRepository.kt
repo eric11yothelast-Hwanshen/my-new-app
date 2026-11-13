@@ -6,6 +6,7 @@ import com.hmoney.app.domain.model.AiError
 import com.hmoney.app.domain.model.AiFilterSuggestion
 import com.hmoney.app.domain.model.AiSuggestion
 import com.hmoney.app.domain.model.AiTextResult
+import com.hmoney.app.domain.model.TransactionDraft
 import kotlinx.coroutines.flow.Flow
 
 /** AI 呼叫結果：成功或 AiError（各自有明確 UI 回饋） */
@@ -52,6 +53,22 @@ interface AiRepository {
 
     /** 通用財務數據解讀（總覽洞察、統計分析、帳戶解讀、批次交易分析） */
     suspend fun analyzeData(title: String, data: String): AiTextResult
+
+    /**
+     * 自然語言記帳草稿（1.3.0，Session 39）：把描述解析為一或多筆草稿。
+     * 僅產生草稿，嚴禁寫入 DB——寫入走之後 session 的「草稿預覽 → 使用者確認」流程。
+     */
+    suspend fun parseTransactionsFromText(text: String): Result<List<TransactionDraft>>
+
+    /**
+     * 圖片記帳草稿（1.3.0，Session 39）：解析付款截圖／發票／明細照片為草稿。
+     * 模型不支援 vision（HTTP 4xx）時回 AiError.VisionUnsupported。
+     */
+    suspend fun parseTransactionsFromImage(
+        imageBase64: String,
+        mimeType: String,
+        hint: String = "",
+    ): Result<List<TransactionDraft>>
 
     fun observeHistory(): Flow<List<AiAnalysis>>
 

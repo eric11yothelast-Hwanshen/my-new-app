@@ -19,6 +19,15 @@
 
 ## Session 紀錄
 
+- **Session 39（1.3.0 第二階段：AI 記帳服務層，已完成）**：僅服務層，不碰 UI、不接開關（S41/S42 才接）、不加新依賴、無任何 DB 寫入。
+  - **TransactionDraft 草稿模型**：type（EXPENSE/INCOME）、amountCents、note、categoryName（對不上既有分類時 null，由 UI fallback「其他」）、accountName nullable、dateEpochMillis nullable（模型只給自然語言日期時由服務層解析，無法解析回 null）、tags、rawText（原始對應片段，debug 用）。
+  - **AiRepository 兩個新功能**（介面＋實作，Result<List<TransactionDraft>>＋AiCallException，風格比照 suggestForNote/interpretFilter）：parseTransactionsFromText（自然語言→草稿陣列，支援一次多筆，金額容錯「1,200」「120.5」「NT$300」「450元」，日期解析今天/昨天/前天/大前天/上週五/ISO／斜線日期，一律系統時區換算 epoch）；parseTransactionsFromImage（OpenAI 相容 vision content 陣列：text＋image_url data URI base64，解析截圖／發票／明細；HTTP 4xx（401/403/429 除外）回新錯誤 AiError.VisionUnsupported，字串資源之後 session 再接）。
+  - **錯誤與邊界**：單筆欄位缺失不讓整批失敗（該筆以預設值照樣產出，確認流程補）；content 抽取失敗或 JSON 陣列完全無法解析才回 AiError.Parse。
+  - **關鍵決策（Session 39）**：草稿回應元素以 {"type":"expense"...} 開頭，會被既有 sanitizeAiText／aiJsonFragmentRegex 誤判成思考區塊而清空——因此抽出共用 rawAiContent()（choices[0].message.content 三形態取用），草稿路徑走 request()＋extractDraftContent()（不做防禦性清理），chat／分析路徑的 extractAiContent() 行為完全不動。
+  - **單元測試**：AiDraftParserTest 十二案例——金額格式、日期解析（固定基準日 2026-11-13 與 Asia/Taipei）、單筆／多筆／欄位缺失／markdown 圍籬容錯／完全無法解析、vision payload 形狀與 data URI、區塊清單 content 抽取、純字串 content 不清理。
+  - **請勿誤改**：(1) TransactionDraft 是草稿模型，服務層嚴禁寫入 DB——寫入一律走之後 session 的「草稿預覽→使用者確認」流程（S41），這是防幻覺亂寫的底線；(2) vision 訊息 payload 形狀（content 陣列＋image_url data URI）是 API 相容關鍵，改形狀前先查目標 API 文件；(3) 草稿路徑不得改走 extractAiContent（會被防禦性清理清空，見上）。
+  - **驗證方式**：沙箱無 JDK/Android SDK（與先前 session 相同），單元測試＋lint＋雙 APK 簽署由 GitHub Actions 執行。
+
 - **Session 38（1.3.0 第一階段：資料層擴充，DB v4 → v5，已完成）**：里程碑「AI 記帳（自然語言／圖片／條碼寫入）＋物品管理」啟動，本 session 僅做資料層，不碰任何 ui/ 檔案、不做任何 AI 呼叫、不加任何新第三方依賴（掃描器／相機留待之後 session）。
   - **TransactionEntity 三新欄位**：source（TEXT NOT NULL，遷移預設 'manual'；語意值僅四個：manual = 手動輸入、ai_text = 自然語言記帳、ai_image = 圖片記帳、barcode = 條碼記帳）、barcode（TEXT nullable，商品條碼）、receiptImagePath（TEXT nullable，憑證圖片路徑，之後 session 使用）。Domain 層對應 TransactionSource enum（MANUAL／AI_TEXT／AI_IMAGE／BARCODE），mapper 對未知字串容錯為 MANUAL，MoneyTransaction 新欄位皆有預設值，既有 UI 呼叫處零改動。
   - **items 新表（物品管理）**：id PK autoGenerate、name NOT NULL、barcode nullable、storageLocation nullable、quantity INTEGER NOT NULL DEFAULT 1、expiryDateEpochMillis nullable、purchaseTransactionId nullable（FK transactions.id，onDelete = SET_NULL——交易刪除時物品保留、關聯歸 NULL）、createdAtEpochMillis／updatedAtEpochMillis；索引：barcode、expiryDateEpochMillis。對應 Item domain model（quantity 不可為負、名稱不可空白）、ItemDao（observeAll／findByBarcode／findById／insert／update／delete）、ItemRepository ＋ ItemRepositoryImpl（@Binds 綁定於 RepositoryModule）。

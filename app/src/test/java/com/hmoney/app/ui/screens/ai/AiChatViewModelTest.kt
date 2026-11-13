@@ -284,6 +284,13 @@ private class FakeAiRepository : AiRepository {
     ) = throw UnsupportedOperationException()
     override suspend fun analyzeData(title: String, data: String) =
         throw UnsupportedOperationException()
+    override suspend fun parseTransactionsFromText(text: String) =
+        throw UnsupportedOperationException()
+    override suspend fun parseTransactionsFromImage(
+        imageBase64: String,
+        mimeType: String,
+        hint: String,
+    ) = throw UnsupportedOperationException()
     override fun observeHistory() =
         emptyFlow<List<com.hmoney.app.domain.model.AiAnalysis>>()
     override suspend fun deleteHistory(id: Long) = Unit

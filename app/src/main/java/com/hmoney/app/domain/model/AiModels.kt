@@ -18,6 +18,9 @@ sealed class AiError {
     data object QuotaExceeded : AiError()
     data class Http(val code: Int) : AiError()
     data object Parse : AiError()
+
+    /** 模型不支援 vision（圖片輸入）——HTTP 4xx 時的明確錯誤（Session 39） */
+    data object VisionUnsupported : AiError()
 }
 
 /** 純文字回應結果（通用 AI 功能共用） */
