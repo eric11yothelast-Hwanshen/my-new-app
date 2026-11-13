@@ -11,6 +11,7 @@ import com.hmoney.app.domain.model.AiFilterSuggestion
 import com.hmoney.app.domain.model.AiSuggestion
 import com.hmoney.app.domain.model.AiTextResult
 import com.hmoney.app.domain.model.Category
+import com.hmoney.app.domain.model.TransactionDraft
 import com.hmoney.app.domain.model.CategoryType
 import com.hmoney.app.domain.model.TransactionType
 import com.hmoney.app.domain.logic.BalanceCalculator
@@ -42,6 +43,9 @@ private const val AI_CHAT_TEMPERATURE = 0.65
 
 /** 分析類呼叫溫度（Session 30 既有值，不變） */
 private const val AI_ANALYSIS_TEMPERATURE = 0.4
+
+/** 記帳草稿解析溫度（Session 39）：結構化輸出要求穩定，取低溫 */
+private const val AI_DRAFT_TEMPERATURE = 0.1
 
 /**
  * AI 倉儲實作：
@@ -208,6 +212,125 @@ class AiRepositoryImpl @Inject constructor(
                     },
                 )
             }
+        }
+    }
+
+    // ===== AI 記帳草稿（1.3.0，僅產生草稿、嚴禁寫入 DB） =====
+
+    override suspend fun parseTransactionsFromText(text: String): Result<List<TransactionDraft>> {
+        val config = configStore.read()
+        if (!config.isConfigured) {
+            return Result.failure(AiCallException(AiError.NotConfigured))
+        }
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        // 草稿回應是 {"type":"expense"...} 開頭的 JSON 陣列，會被 sanitizeAiText 誤刪，
+        // 因此走 request() + extractDraftContent()，不經 callRaw／extractAiContent
+        return when (
+            val raw = request(
+                config,
+                systemPrompt = "你是記帳助理。把使用者的記帳描述轉成 JSON 陣列，每筆格式：" +
+                    "{\"type\":\"expense|income\", \"amount\":\"金額字串\", \"note\":\"說明\", " +
+                    "\"category\":\"分類名或null\", \"account\":\"帳戶名或null\", " +
+                    "\"date\":\"自然語言或ISO日期\", \"tags\":[\"標籤\"]}。" +
+                    "描述裡有多筆就回多筆。無法判斷的欄位填 null。只回傳 JSON 陣列，不加其他文字。",
+                userPrompt = "今天是 $today。記帳描述：$text",
+                reasoningEffort = "none",
+                temperature = AI_DRAFT_TEMPERATURE,
+            )
+        ) {
+            is AiError -> Result.failure(AiCallException(raw))
+            is String -> draftsFromRaw(raw, today, zone)
+            else -> Result.failure(AiCallException(AiError.Parse))
+        }
+    }
+
+    override suspend fun parseTransactionsFromImage(
+        imageBase64: String,
+        mimeType: String,
+        hint: String,
+    ): Result<List<TransactionDraft>> {
+        val config = configStore.read()
+        if (!config.isConfigured) {
+            return Result.failure(AiCallException(AiError.NotConfigured))
+        }
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val systemPrompt = "你是記帳助理。請解析圖片（付款截圖／發票／明細照片）為記帳草稿 JSON 陣列，每筆格式：" +
+            "{\"type\":\"expense|income\", \"amount\":\"金額字串\", \"note\":\"品項或說明\", " +
+            "\"category\":\"分類名或null\", \"account\":\"付款方式或帳戶名或null\", " +
+            "\"date\":\"發票或交易日期\", \"tags\":[\"標籤\"]}。" +
+            "圖片有多筆明細就回多筆。無法辨識的欄位填 null。只回傳 JSON 陣列，不加其他文字。"
+        val userText = "今天是 $today。" +
+            (hint.takeIf { it.isNotBlank() }?.let { "補充說明：$it。" } ?: "") +
+            "請解析這張圖片為記帳草稿。"
+        return when (val raw = requestVision(config, systemPrompt, userText, imageBase64, mimeType)) {
+            is AiError -> Result.failure(AiCallException(raw))
+            is String -> draftsFromRaw(raw, today, zone)
+            else -> Result.failure(AiCallException(AiError.Parse))
+        }
+    }
+
+    /** 原始回應 → 草稿清單（content 抽取失敗或 JSON 陣列完全無法解析才回 AiError.Parse） */
+    private fun draftsFromRaw(
+        raw: String,
+        today: LocalDate,
+        zone: ZoneId,
+    ): Result<List<TransactionDraft>> {
+        val content = extractDraftContent(raw)
+            ?: return Result.failure(AiCallException(AiError.Parse))
+        return parseDraftsFromContent(content, today, zone)?.let { Result.success(it) }
+            ?: Result.failure(AiCallException(AiError.Parse))
+    }
+
+    /**
+     * vision HTTP 請求（OpenAI 相容 content 陣列形狀）：user content = text + image_url data URI。
+     * 模型不支援 vision（HTTP 4xx，401／403／429 除外）回 AiError.VisionUnsupported。
+     */
+    private suspend fun requestVision(
+        config: AiConfig,
+        systemPrompt: String,
+        userText: String,
+        imageBase64: String,
+        mimeType: String,
+    ): Any {
+        val endpoint = config.baseUrl.trimEnd('/') + "/chat/completions"
+        val body = JSONObject().apply {
+            put("model", config.model)
+            put(
+                "messages",
+                JSONArray()
+                    .put(JSONObject().put("role", "system").put("content", systemPrompt))
+                    .put(
+                        JSONObject()
+                            .put("role", "user")
+                            .put("content", buildVisionUserContent(userText, imageBase64, mimeType)),
+                    ),
+            )
+            put("temperature", AI_DRAFT_TEMPERATURE)
+            put("max_tokens", 2048)
+        }.toString().toRequestBody(jsonMediaType)
+        return try {
+            val response = aiApi.chat(
+                url = endpoint,
+                authorization = "Bearer ${config.apiKey}",
+                body = body,
+            )
+            when {
+                response.code() == 401 || response.code() == 403 -> AiError.Unauthorized
+                response.code() == 429 -> AiError.QuotaExceeded
+                !response.isSuccessful ->
+                    if (response.code() in 400..499) {
+                        AiError.VisionUnsupported
+                    } else {
+                        AiError.Http(response.code())
+                    }
+                else -> response.body()?.string() ?: AiError.Parse
+            }
+        } catch (e: IOException) {
+            AiError.Network
+        } catch (e: HttpException) {
+            if (e.code() in 400..499) AiError.VisionUnsupported else AiError.Http(e.code())
         }
     }
 
@@ -568,12 +691,17 @@ class AiCallException(val error: com.hmoney.app.domain.model.AiError) :
  * 無法解析則移除該片段——絕不讓 JSON 或內部思考洩漏到 UI。
  * 延續 Session 10 extractContent 決策的相容性擴充，勿改回純字串處理。
  */
-internal fun extractAiContent(raw: String): String? = runCatching {
-    val content = JSONObject(raw)
+/** 從 API 原始回應取 choices[0].message.content 元素（三形態共用，Session 39 抽出） */
+internal fun rawAiContent(raw: String): Any? = runCatching {
+    JSONObject(raw)
         .getJSONArray("choices")
         .getJSONObject(0)
         .getJSONObject("message")
         .get("content")
+}.getOrNull()
+
+internal fun extractAiContent(raw: String): String? = runCatching {
+    val content = rawAiContent(raw) ?: return@runCatching null
     when (content) {
         is String -> collapseFullTextDuplication(sanitizeAiText(content))
         is JSONArray -> {
