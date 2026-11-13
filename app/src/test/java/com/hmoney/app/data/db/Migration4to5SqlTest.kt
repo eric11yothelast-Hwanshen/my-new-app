@@ -13,8 +13,8 @@ import org.junit.Test
 class Migration4to5SqlTest {
 
     @Test
-    fun `遷移共產生 7 條 SQL 語句`() {
-        assertEquals(7, HmoneyDatabase.MIGRATION_4_5_SQL.size)
+    fun `遷移共產生 6 條 SQL 語句`() {
+        assertEquals(6, HmoneyDatabase.MIGRATION_4_5_SQL.size)
     }
 
     @Test
