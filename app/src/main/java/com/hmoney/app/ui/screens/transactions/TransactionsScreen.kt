@@ -1,0 +1,761 @@
+package com.hmoney.app.ui.screens.transactions
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.FilterList
+import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.DateRangePicker
+import androidx.compose.material3.DateRangePickerState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDateRangePickerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.unit.dp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.hmoney.app.R
+import com.hmoney.app.domain.model.TransactionType
+import com.hmoney.app.ui.common.Formats
+import com.hmoney.app.ui.components.AiFloatingButton
+import com.hmoney.app.ui.components.AiResultDialog
+import com.hmoney.app.ui.components.EmptyState
+import com.hmoney.app.ui.components.SwipeToRevealRow
+import com.hmoney.app.ui.components.TransactionRow
+import kotlinx.coroutines.launch
+import com.hmoney.app.ui.components.glassSource
+import com.hmoney.app.ui.screens.add.AddTransactionSheet
+import com.hmoney.app.ui.screens.ai.AiAssistantSheet
+import com.hmoney.app.ui.screens.ai.FeatureAiViewModel
+import dev.chrisbanes.haze.rememberHazeState
+import java.time.Instant
+import java.time.ZoneId
+
+/**
+ * 明細頁：完整交易列表＋搜尋（關鍵字）＋篩選（期間、帳戶、分類、類型），
+ * 按日分組顯示、當日小計，單筆可編輯／刪除（刪除需確認對話框）。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TransactionsScreen(
+    modifier: Modifier = Modifier,
+    onGoSettings: () -> Unit = {},
+    viewModel: TransactionsViewModel = hiltViewModel(),
+    aiViewModel: FeatureAiViewModel = hiltViewModel(),
+) {
+    val state by viewModel.uiState.collectAsState()
+    val aiState by aiViewModel.uiState.collectAsState()
+    val aiQueryEnabled by aiViewModel.aiQueryEnabled.collectAsState(initial = true)
+    val glassState = rememberHazeState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+
+    var editingId by remember { mutableStateOf<Long?>(null) }
+    var deletingId by remember { mutableStateOf<Long?>(null) }
+    var revealedId by remember { mutableStateOf<Long?>(null) }
+    var showDateRange by remember { mutableStateOf(false) }
+    var showFilterSheet by remember { mutableStateOf(false) }
+    var showAiSheet by remember { mutableStateOf(false) }
+    var aiQuery by remember { mutableStateOf("") }
+    val aiFilterAppliedMessage = stringResource(R.string.ai_filter_applied)
+    val deletedMessage = stringResource(R.string.transactions_deleted)
+
+    // AI 篩選結果：轉成資料庫篩選條件並套用到清單
+    LaunchedEffect(aiState) {
+        when (val s = aiState) {
+            is FeatureAiViewModel.UiState.Filter -> {
+                s.suggestion.categoryName?.let { name ->
+                    state.categories.values
+                        .firstOrNull { it.name == name }
+                        ?.let { viewModel.setCategory(it.id) }
+                }
+                s.suggestion.accountName?.let { name ->
+                    state.accounts.firstOrNull { it.name == name }
+                        ?.let { viewModel.setAccount(it.id) }
+                }
+                viewModel.setKeyword(s.suggestion.keyword ?: "")
+                viewModel.setDateRange(
+                    s.suggestion.startDateEpochMillis,
+                    s.suggestion.endDateEpochMillis,
+                )
+                scope.launch { snackbarHostState.showSnackbar(aiFilterAppliedMessage) }
+                aiViewModel.reset()
+            }
+
+            else -> Unit
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .glassSource(glassState),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+        ) {
+        Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.transactions_title),
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.padding(vertical = 12.dp),
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // S45：「AI 查詢」入口（僅開關開時顯示）——點擊開啟既有 AI 助手 sheet 直接查詢
+                    if (aiQueryEnabled) {
+                        TextButton(onClick = { showAiSheet = true }) {
+                            Text(stringResource(R.string.transactions_ai_query))
+                        }
+                    }
+                    IconButton(onClick = onGoSettings) {
+                        Icon(
+                            Icons.Outlined.Settings,
+                            contentDescription = stringResource(R.string.tab_settings),
+                        )
+                    }
+                }
+            }
+            // 篩選收合：預設只顯示搜尋列＋篩選按鈕；已套用的篩選以一列摘要 chips 呈現，點 chip 快速移除
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
+                OutlinedTextField(
+                    value = state.filters.keyword,
+                    onValueChange = viewModel::setKeyword,
+                    placeholder = { Text(stringResource(R.string.transactions_search_hint)) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                Box {
+                    IconButton(onClick = { showFilterSheet = true }) {
+                        Icon(
+                            Icons.Outlined.FilterList,
+                            contentDescription = stringResource(R.string.transactions_filter),
+                            tint = if (state.filters != TransactionsViewModel.Filters()) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
+                    if (state.filters != TransactionsViewModel.Filters()) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(top = 10.dp, end = 10.dp)
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary),
+                        )
+                    }
+                }
+            }
+            if (state.filters != TransactionsViewModel.Filters()) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(vertical = 8.dp),
+                ) {
+                    state.filters.type?.let { type ->
+                        item(key = "type") {
+                            FilterChip(
+                                selected = true,
+                                onClick = { viewModel.setType(null) },
+                                label = {
+                                    Text(
+                                        stringResource(
+                                            when (type) {
+                                                TransactionType.EXPENSE -> R.string.add_type_expense
+                                                TransactionType.INCOME -> R.string.add_type_income
+                                                TransactionType.TRANSFER -> R.string.add_type_transfer
+                                            },
+                                        ),
+                                    )
+                                },
+                            )
+                        }
+                    }
+                    state.filters.accountId?.let { accountId ->
+                        item(key = "account") {
+                            FilterChip(
+                                selected = true,
+                                onClick = { viewModel.setAccount(null) },
+                                label = {
+                                    Text(
+                                        state.accounts.firstOrNull { it.id == accountId }?.name.orEmpty(),
+                                    )
+                                },
+                            )
+                        }
+                    }
+                    state.filters.categoryId?.let { categoryId ->
+                        item(key = "category") {
+                            FilterChip(
+                                selected = true,
+                                onClick = { viewModel.setCategory(null) },
+                                label = {
+                                    Text(
+                                        state.filterCategories
+                                            .firstOrNull { it.id == categoryId }?.name.orEmpty(),
+                                    )
+                                },
+                            )
+                        }
+                    }
+                    if (state.filters.startDate != null || state.filters.endDate != null) {
+                        item(key = "period") {
+                            FilterChip(
+                                selected = true,
+                                onClick = { viewModel.setDateRange(null, null) },
+                                label = {
+                                    val start = state.filters.startDate
+                                    val end = state.filters.endDate
+                                    Text(
+                                        text = (start?.let { Formats.shortDate(it) } ?: "—") +
+                                            "–" +
+                                            (end?.let { Formats.shortDate(it) } ?: "—"),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.widthIn(max = 160.dp),
+                                    )
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (state.groups.isEmpty()) {
+            EmptyState(
+                icon = Icons.Outlined.ReceiptLong,
+                messageRes = R.string.transactions_empty,
+            )
+        } else {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { revealedId = null },
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                contentPadding = PaddingValues(bottom = 160.dp),
+            ) {
+                state.groups.forEach { group ->
+                    item(key = "header-${group.epochDay}") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = Formats.date(
+                                    java.time.LocalDate.ofEpochDay(group.epochDay),
+                                ),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                text = stringResource(R.string.transactions_day_total) +
+                                    "：" +
+                                    Formats.money(group.incomeCents - group.expenseCents),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    items(group.transactions, key = { it.id }) { tx ->
+                        SwipeToRevealRow(
+                            revealed = revealedId == tx.id,
+                            onReveal = { if (revealedId != tx.id) revealedId = tx.id },
+                            onCollapse = { if (revealedId == tx.id) revealedId = null },
+                            actions = {
+                                IconButton(
+                                    onClick = {
+                                        revealedId = null
+                                        editingId = tx.id
+                                    },
+                                    modifier = Modifier.background(
+                                        MaterialTheme.colorScheme.secondaryContainer,
+                                        CircleShape,
+                                    ),
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.Edit,
+                                        contentDescription = stringResource(R.string.accounts_edit),
+                                        tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    )
+                                }
+                                IconButton(
+                                    onClick = {
+                                        revealedId = null
+                                        deletingId = tx.id
+                                    },
+                                    modifier = Modifier.background(
+                                        MaterialTheme.colorScheme.errorContainer,
+                                        CircleShape,
+                                    ),
+                                ) {
+                                    Icon(
+                                        Icons.Outlined.Delete,
+                                        contentDescription = stringResource(R.string.common_delete),
+                                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                                    )
+                                }
+                            },
+                        ) {
+                            TransactionRow(
+                                transaction = tx,
+                                category = state.categories[tx.categoryId],
+                                accountName = state.accounts
+                                    .firstOrNull { it.id == tx.accountId }?.name,
+                                toAccountName = state.accounts
+                                    .firstOrNull { it.id == tx.toAccountId }?.name,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        }
+
+        // 浮動 AI 按鈕（全域 AI 助手）
+        AiFloatingButton(
+            onClick = { showAiSheet = true },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(20.dp),
+        )
+
+        // 刪除／AI 篩選回饋（Snackbar）
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 88.dp),
+        )
+    }
+
+    // 編輯
+    editingId?.let { id ->
+        AddTransactionSheet(
+            onDismiss = { editingId = null },
+            editingId = id,
+            snackbarHostState = snackbarHostState,
+        )
+    }
+
+    if (showAiSheet) {
+        AiAssistantSheet(
+            onDismiss = { showAiSheet = false },
+            onGoSettings = {
+                showAiSheet = false
+                onGoSettings()
+            },
+        )
+    }
+
+    if (aiState !is FeatureAiViewModel.UiState.Idle &&
+        aiState !is FeatureAiViewModel.UiState.Filter
+    ) {
+        AiResultDialog(
+            state = aiState,
+            onCancel = aiViewModel::cancel,
+            onGoSettings = onGoSettings,
+            onDismiss = aiViewModel::reset,
+        )
+    }
+
+    // 刪除確認
+    deletingId?.let { id ->
+        AlertDialog(
+            onDismissRequest = { deletingId = null },
+            title = { Text(stringResource(R.string.transactions_delete_title)) },
+            text = { Text(stringResource(R.string.transactions_delete_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteTransaction(id)
+                        deletingId = null
+                        scope.launch { snackbarHostState.showSnackbar(deletedMessage) }
+                    },
+                ) { Text(stringResource(R.string.common_delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingId = null }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
+    }
+
+    // 篩選集中選擇 bottom sheet：沿用既有 FilterChip 元件，只換容器；ViewModel 篩選邏輯完全不動
+    if (showFilterSheet) {
+        val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = { showFilterSheet = false },
+            sheetState = filterSheetState,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .navigationBarsPadding()
+                    .padding(bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.transactions_filter_sheet_title),
+                    style = MaterialTheme.typography.titleLarge,
+                )
+
+                // AI 自然語言搜尋／篩選
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedTextField(
+                        value = aiQuery,
+                        onValueChange = { aiQuery = it },
+                        placeholder = { Text(stringResource(R.string.ai_filter_hint)) },
+                        singleLine = true,
+                        leadingIcon = {
+                            Icon(
+                                Icons.Outlined.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(
+                        onClick = {
+                            aiViewModel.interpretFilter(
+                                query = aiQuery,
+                                categoryNames = state.categories.values.map { it.name },
+                                accountNames = state.accounts.map { it.name },
+                            )
+                        },
+                        enabled = aiQuery.isNotBlank() &&
+                            aiState !is FeatureAiViewModel.UiState.Loading,
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Outlined.Send,
+                            contentDescription = stringResource(R.string.ai_filter_apply),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+
+                // 類型篩選
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = state.filters.type == null,
+                        onClick = { viewModel.setType(null) },
+                        label = { Text(stringResource(R.string.transactions_filter_all)) },
+                    )
+                    TransactionType.entries.forEach { type ->
+                        FilterChip(
+                            selected = state.filters.type == type,
+                            onClick = { viewModel.setType(type) },
+                            label = {
+                                Text(
+                                    stringResource(
+                                        when (type) {
+                                            TransactionType.EXPENSE -> R.string.add_type_expense
+                                            TransactionType.INCOME -> R.string.add_type_income
+                                            TransactionType.TRANSFER -> R.string.add_type_transfer
+                                        },
+                                    ),
+                                )
+                            },
+                        )
+                    }
+                }
+
+                // 帳戶篩選
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    item {
+                        FilterChip(
+                            selected = state.filters.accountId == null,
+                            onClick = { viewModel.setAccount(null) },
+                            label = {
+                                Text(
+                                    stringResource(R.string.transactions_filter_account) +
+                                        "：" + stringResource(R.string.transactions_filter_all),
+                                )
+                            },
+                        )
+                    }
+                    items(state.accounts, key = { it.id }) { account ->
+                        FilterChip(
+                            selected = state.filters.accountId == account.id,
+                            onClick = { viewModel.setAccount(account.id) },
+                            label = { Text(account.name) },
+                        )
+                    }
+                }
+
+                // 分類篩選
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    item {
+                        FilterChip(
+                            selected = state.filters.categoryId == null,
+                            onClick = { viewModel.setCategory(null) },
+                            label = {
+                                Text(
+                                    stringResource(R.string.transactions_filter_category) +
+                                        "：" + stringResource(R.string.transactions_filter_all),
+                                )
+                            },
+                        )
+                    }
+                    items(state.filterCategories, key = { it.id }) { category ->
+                        FilterChip(
+                            selected = state.filters.categoryId == category.id,
+                            onClick = { viewModel.setCategory(category.id) },
+                            label = { Text(category.name) },
+                        )
+                    }
+                }
+
+                // 期間篩選（沿用短日期格式與 widthIn 上限）與清除全部
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = state.filters.startDate != null || state.filters.endDate != null,
+                        onClick = { showDateRange = true },
+                        label = {
+                            val start = state.filters.startDate
+                            val end = state.filters.endDate
+                            Text(
+                                text = if (start == null && end == null) {
+                                    stringResource(R.string.transactions_filter_date)
+                                } else {
+                                    (start?.let { Formats.shortDate(it) } ?: "—") +
+                                        "–" +
+                                        (end?.let { Formats.shortDate(it) } ?: "—")
+                                },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.widthIn(max = 160.dp),
+                            )
+                        },
+                    )
+                    if (state.filters != TransactionsViewModel.Filters()) {
+                        TextButton(onClick = viewModel::clearFilters) {
+                            Text(stringResource(R.string.transactions_filter_clear_all))
+                        }
+                    }
+                }
+
+                // 批次分析：移入篩選區，不再擠在首屏
+                val expenseLabel = stringResource(R.string.add_type_expense)
+                val incomeLabel = stringResource(R.string.add_type_income)
+                val transferLabel = stringResource(R.string.add_type_transfer)
+                val analyzeTitle = stringResource(R.string.ai_analyze_batch)
+                AssistChip(
+                    onClick = {
+                        val data = state.groups
+                            .flatMap { it.transactions }
+                            .take(50)
+                            .joinToString("\n") { tx ->
+                                val typeLabel = when (tx.type) {
+                                    TransactionType.EXPENSE -> expenseLabel
+                                    TransactionType.INCOME -> incomeLabel
+                                    TransactionType.TRANSFER -> transferLabel
+                                }
+                                val accountName = state.accounts
+                                    .firstOrNull { it.id == tx.accountId }?.name ?: ""
+                                val categoryName = state.categories[tx.categoryId]?.name ?: ""
+                                "- ${Formats.date(tx.dateEpochMillis)} $typeLabel " +
+                                    "$accountName $categoryName ${Formats.money(tx.amountCents)} ${tx.note}"
+                            }
+                        aiViewModel.runText(
+                            title = analyzeTitle,
+                            data = data,
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Outlined.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                    label = { Text(stringResource(R.string.ai_analyze_batch)) },
+                )
+            }
+        }
+    }
+
+    // 期間篩選對話框
+    if (showDateRange) {
+        val pickerState = rememberDateRangePickerState(
+            initialSelectedStartDateMillis = state.filters.startDate,
+            initialSelectedEndDateMillis = state.filters.endDate,
+        )
+        Dialog(
+            onDismissRequest = { showDateRange = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 480.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = 6.dp,
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = stringResource(R.string.transactions_filter_date),
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                    // 自繪選取狀態列取代內建 headline：兩欄等寬不重疊、不截斷
+                    DateRangeSelectionRow(state = pickerState)
+                    DateRangePicker(
+                        state = pickerState,
+                        showModeToggle = false,
+                        title = {},
+                        headline = {},
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 480.dp),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        TextButton(onClick = { showDateRange = false }) {
+                            Text(stringResource(R.string.common_cancel))
+                        }
+                        TextButton(
+                            onClick = {
+                                // 期間以「日」為單位：起始日 00:00 ～結束日 23:59
+                                val startMillis = pickerState.selectedStartDateMillis
+                                val endMillis = pickerState.selectedEndDateMillis
+                                    ?.let { Formats.toLocalDate(it).plusDays(1)
+                                        .atStartOfDay(java.time.ZoneId.systemDefault())
+                                        .toInstant().toEpochMilli() - 1 }
+                                viewModel.setDateRange(startMillis, endMillis)
+                                showDateRange = false
+                            },
+                        ) { Text(stringResource(R.string.common_confirm)) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 自繪選取狀態列：左右兩欄等寬（各 weight(1f)），任何寬度與 fontScale 皆不重疊、不截斷 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DateRangeSelectionRow(state: DateRangePickerState) {
+    val notSelected = stringResource(R.string.transactions_filter_not_selected)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.transactions_filter_start),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = state.selectedStartDateMillis?.let { Formats.date(it) }
+                    ?: notSelected,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+            contentDescription = null,
+            modifier = Modifier
+                .padding(horizontal = 8.dp)
+                .size(16.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.transactions_filter_end),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = state.selectedEndDateMillis?.let { Formats.date(it) }
+                    ?: notSelected,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}

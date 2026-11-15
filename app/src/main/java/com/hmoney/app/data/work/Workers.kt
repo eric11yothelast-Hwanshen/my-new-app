@@ -1,0 +1,333 @@
+package com.hmoney.app.data.work
+
+import android.content.Context
+import androidx.hilt.work.HiltWorker
+import androidx.work.CoroutineWorker
+import androidx.work.WorkerParameters
+import com.hmoney.app.R
+import com.hmoney.app.data.notification.Notifier
+import com.hmoney.app.domain.model.BudgetType
+import com.hmoney.app.domain.model.CategoryType
+import com.hmoney.app.domain.model.TransactionType
+import com.hmoney.app.domain.repository.BudgetRepository
+import com.hmoney.app.domain.repository.CategoryRepository
+import com.hmoney.app.domain.repository.RecurringRepository
+import com.hmoney.app.domain.repository.SettingsRepository
+import com.hmoney.app.domain.repository.TransactionRepository
+import com.hmoney.app.domain.repository.ItemRepository
+import com.hmoney.app.ui.common.Formats
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
+import kotlinx.coroutines.flow.first
+import java.time.LocalDate
+import java.time.ZoneId
+
+/** AI 助手頁導覽路徑（通知深連結用） */
+const val AI_ASSISTANT_ROUTE = "ai_assistant"
+
+/**
+ * 每日記帳提醒的 fallback Worker（精確鬧鐘被系統收回時使用）。
+ */
+@HiltWorker
+class DailyReminderWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val notifier: Notifier,
+) : CoroutineWorker(context, params) {
+
+    override suspend fun doWork(): Result {
+        notifier.post(
+            channelId = Notifier.Channels.DAILY_REMINDER,
+            notificationId = 1001,
+            title = applicationContext.getString(R.string.notification_daily_reminder),
+            content = applicationContext.getString(R.string.notification_daily_reminder_content),
+            intent = notifier.appPendingIntent(),
+        )
+        return Result.success()
+    }
+}
+
+/**
+ * 預算警示 Worker：月預算／分類預算達 80%／100% 時各推一次（同月不重複轟炸）。
+ */
+@HiltWorker
+class BudgetCheckWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val budgetRepository: BudgetRepository,
+    private val categoryRepository: CategoryRepository,
+    private val transactionRepository: TransactionRepository,
+    private val settingsRepository: SettingsRepository,
+    private val notifier: Notifier,
+) : CoroutineWorker(context, params) {
+
+    override suspend fun doWork(): Result {
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val monthStart = today.withDayOfMonth(1)
+            .atStartOfDay(zone).toInstant().toEpochMilli()
+        val monthEnd = today.plusMonths(1).withDayOfMonth(1)
+            .atStartOfDay(zone).toInstant().toEpochMilli()
+        val monthKey = "%04d%02d".format(today.year, today.monthValue)
+
+        val transactions = transactionRepository.observeTransactions(
+            startDate = monthStart,
+            endDate = monthEnd,
+        ).first()
+        val spentByCategory = transactions
+            .filter { it.type == TransactionType.EXPENSE }
+            .groupBy { it.categoryId }
+            .mapValues { (_, txs) -> txs.sumOf { it.amountCents } }
+        val totalSpent = spentByCategory.values.sum()
+
+        val budgets = budgetRepository.observeAll().first()
+        val categories = categoryRepository.observeAll(CategoryType.EXPENSE).first()
+            .associateBy { it.id }
+
+        // 月總預算警示（同月僅推一次）
+        val total = budgets.firstOrNull { it.type == BudgetType.TOTAL }
+        if (total != null && total.amountCents > 0) {
+            checkAndNotify(
+                flagBase = "budget_total_${monthKey}",
+                budgetCents = total.amountCents,
+                spentCents = totalSpent,
+                titleWarn = applicationContext.getString(R.string.notification_budget_warning_title),
+                contentWarn = applicationContext.getString(R.string.notification_budget_warning_80),
+                contentOver = applicationContext.getString(R.string.notification_budget_warning_100),
+                idBase = 2001,
+            )
+        }
+
+        // 分類預算警示
+        budgets.filter { it.type == BudgetType.CATEGORY }.forEach { budget ->
+            val category = categories[budget.categoryId] ?: return@forEach
+            val spent = spentByCategory[budget.categoryId] ?: 0L
+            checkAndNotify(
+                flagBase = "budget_cat_${budget.categoryId}_$monthKey",
+                budgetCents = budget.amountCents,
+                spentCents = spent,
+                titleWarn = category.name,
+                contentWarn = applicationContext.getString(
+                    R.string.notification_budget_category_80,
+                    category.name,
+                ),
+                contentOver = applicationContext.getString(
+                    R.string.notification_budget_category_100,
+                    category.name,
+                ),
+                idBase = 2000 + (budget.categoryId ?: 0L).toInt() % 1000,
+            )
+        }
+        return Result.success()
+    }
+
+    private suspend fun checkAndNotify(
+        flagBase: String,
+        budgetCents: Long,
+        spentCents: Long,
+        titleWarn: String,
+        contentWarn: String,
+        contentOver: String,
+        idBase: Int,
+    ) {
+        val ratio = spentCents.toFloat() / budgetCents
+        when {
+            ratio >= 1f -> {
+                if (!settingsRepository.getFlag("${flagBase}_over")) {
+                    notifier.post(
+                        channelId = Notifier.Channels.BUDGET_ALERT,
+                        notificationId = idBase + 1,
+                        title = titleWarn,
+                        content = contentOver,
+                        intent = notifier.appPendingIntent(),
+                    )
+                    settingsRepository.setFlag("${flagBase}_over", true)
+                    settingsRepository.setFlag("${flagBase}_warn", true)
+                }
+            }
+            ratio >= 0.8f -> {
+                if (!settingsRepository.getFlag("${flagBase}_warn")) {
+                    notifier.post(
+                        channelId = Notifier.Channels.BUDGET_ALERT,
+                        notificationId = idBase,
+                        title = titleWarn,
+                        content = contentWarn,
+                        intent = notifier.appPendingIntent(),
+                    )
+                    settingsRepository.setFlag("${flagBase}_warn", true)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 每週摘要 Worker：推播本週總支出與最大分類。
+ * （AI 分析頁於後續階段加入後，點擊將直接開啟該頁）
+ */
+@HiltWorker
+class WeeklySummaryWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val transactionRepository: TransactionRepository,
+    private val categoryRepository: CategoryRepository,
+    private val notifier: Notifier,
+) : CoroutineWorker(context, params) {
+
+    override suspend fun doWork(): Result {
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val weekStart = today.minusDays(7)
+        val transactions = transactionRepository.observeTransactions(
+            startDate = weekStart.atStartOfDay(zone).toInstant().toEpochMilli(),
+            endDate = today.atStartOfDay(zone).toInstant().toEpochMilli(),
+        ).first()
+        val expenses = transactions.filter { it.type == TransactionType.EXPENSE }
+        val total = expenses.sumOf { it.amountCents }
+        val topCategory = expenses
+            .groupBy { it.categoryId }
+            .maxByOrNull { (_, txs) -> txs.sumOf { it.amountCents } }
+            ?.let { (categoryId, _) ->
+                categoryRepository.observeAll(CategoryType.EXPENSE).first()
+                    .firstOrNull { it.id == categoryId }?.name
+            } ?: "—"
+        notifier.post(
+            channelId = Notifier.Channels.WEEKLY_SUMMARY,
+            notificationId = 3001,
+            title = applicationContext.getString(R.string.notification_weekly_title),
+            content = applicationContext.getString(
+                R.string.notification_weekly_content,
+                Formats.moneyWithCurrency(total),
+                topCategory,
+            ),
+            // 點擊直接開啟 AI 分析頁
+            intent = notifier.appPendingIntent(route = AI_ASSISTANT_ROUTE),
+        )
+        return Result.success()
+    }
+}
+
+/**
+ * 週期交易入帳 Worker：產生到期記錄並推播筆數。
+ */
+@HiltWorker
+class RecurringGenerationWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val recurringRepository: RecurringRepository,
+    private val notifier: Notifier,
+) : CoroutineWorker(context, params) {
+
+    override suspend fun doWork(): Result {
+        val generated = runCatching { recurringRepository.generateDue() }.getOrDefault(0)
+        if (generated > 0) {
+            notifier.post(
+                channelId = Notifier.Channels.RECURRING,
+                notificationId = 4001,
+                title = applicationContext.getString(R.string.notification_recurring_title),
+                content = applicationContext.getString(
+                    R.string.notification_recurring_content,
+                    generated,
+                ),
+                intent = notifier.appPendingIntent(),
+            )
+        }
+        return Result.success()
+    }
+}
+
+/**
+ * 每日自動備份 Worker：備份到本地並保留近 7 份。
+ */
+@HiltWorker
+class BackupWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val backupManager: com.hmoney.app.data.backup.BackupManager,
+) : CoroutineWorker(context, params) {
+
+    override suspend fun doWork(): Result {
+        val result = backupManager.runDailyBackup()
+        return if (result.isSuccess) Result.success() else Result.retry()
+    }
+}
+
+/**
+ * AI 對話自動清除 Worker：每日刪除 30 天前未更新的對話（受設定開關控制）。
+ */
+@HiltWorker
+class ChatCleanupWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val chatRepository: com.hmoney.app.domain.repository.ChatRepository,
+    private val settingsRepository: SettingsRepository,
+) : CoroutineWorker(context, params) {
+
+    override suspend fun doWork(): Result {
+        val settings = settingsRepository.observeAiAssistant().first()
+        if (!settings.autoCleanup) return Result.success()
+        val cutoff = System.currentTimeMillis() - RETENTION_MILLIS
+        chatRepository.deleteSessionsOlderThan(cutoff)
+        return Result.success()
+    }
+
+    private companion object {
+        /** 保留 30 天 */
+        const val RETENTION_MILLIS = 30L * 24 * 60 * 60 * 1000
+    }
+}
+
+/**
+ * S46 物品到期提醒 Worker（每日，比照既有每日提醒排程模式）：
+ * 檢查「7 天內到期（含當天）」與「已過期」的物品並發本地通知（沿用既有通知渠道與權限處理）。
+ * 已提醒的物品當天不重複提醒——lastNotified 日期存 DataStore（items schema 不動）。
+ * inventoryEnabled 關閉時檢查直接跳過。
+ */
+@HiltWorker
+class ItemExpiryWorker @AssistedInject constructor(
+    @Assisted context: Context,
+    @Assisted params: WorkerParameters,
+    private val itemRepository: ItemRepository,
+    private val settingsRepository: SettingsRepository,
+    private val notifier: Notifier,
+) : CoroutineWorker(context, params) {
+
+    override suspend fun doWork(): Result {
+        if (!settingsRepository.observeFeatureFlags().first().inventoryEnabled) {
+            return Result.success()
+        }
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val endOfSoon = today.plusDays(7)
+            .atTime(23, 59, 59, 999_999_999)
+            .atZone(zone).toInstant().toEpochMilli()
+        val startOfDay = today.atStartOfDay(zone).toInstant().toEpochMilli()
+        val dayKey = "%04d%02d%02d".format(today.year, today.monthValue, today.dayOfMonth)
+
+        val expiring = itemRepository.findWithExpiryBefore(endOfSoon)
+
+        // 當天已提醒者跳過（lastNotified 記 DataStore，勿動 schema）
+        val pending = expiring.filter { item ->
+            !settingsRepository.getFlag("item_notified_${item.id}_$dayKey")
+        }
+        if (pending.isEmpty()) return Result.success()
+
+        val pendingExpired = pending.filter { (it.expiryDateEpochMillis ?: 0L) < startOfDay }
+        val pendingSoon = pending.filter { (it.expiryDateEpochMillis ?: 0L) >= startOfDay }
+        notifier.post(
+            channelId = Notifier.Channels.ITEM_EXPIRY,
+            notificationId = 5001,
+            title = applicationContext.getString(R.string.notification_item_expiry_title),
+            content = applicationContext.getString(
+                R.string.notification_item_expiry_content,
+                pendingExpired.size,
+                pendingSoon.size,
+            ),
+            intent = notifier.appPendingIntent(),
+        )
+        pending.forEach { item ->
+            settingsRepository.setFlag("item_notified_${item.id}_$dayKey", true)
+        }
+        return Result.success()
+    }
+}

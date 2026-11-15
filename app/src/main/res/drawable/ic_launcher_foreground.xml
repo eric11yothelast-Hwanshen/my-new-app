@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 圖示前景：錢幣＋抽象帳本（中央 66dp 安全区內） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.6"
+        android:scaleY="0.6"
+        android:translateX="21.6"
+        android:translateY="21.6">
+        <!-- 帳本本體 -->
+        <path
+            android:fillColor="#E6FFF8"
+            android:pathData="M30,40h48a6,6 0 0,1 6,6v44a6,6 0 0,1 -6,6h-48a6,6 0 0,1 -6,-6v-44a6,6 0 0,1 6,-6z" />
+        <!-- 帳本內頁分隔線 -->
+        <path
+            android:fillColor="#9AD9CD"
+            android:pathData="M36,56h36v4h-36z" />
+        <path
+            android:fillColor="#9AD9CD"
+            android:pathData="M36,68h36v4h-36z" />
+        <path
+            android:fillColor="#9AD9CD"
+            android:pathData="M36,80h24v4h-24z" />
+        <!-- 錢幣 -->
+        <path
+            android:fillColor="#FFD54F"
+            android:pathData="M54,10a20,20 0 1,0 0,40a20,20 0 1,0 0,-40z" />
+        <path
+            android:fillColor="#F5A623"
+            android:pathData="M54,17a13,13 0 1,0 0,26a13,13 0 1,0 0,-26z" />
+        <path
+            android:fillColor="#FFD54F"
+            android:pathData="M52,22h4v16h-4z" />
+    </group>
+</vector>

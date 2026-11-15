@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 權限最小化：每一項都對應實際功能，不宣告相機／定位等需求外權限 -->
+    <!-- 通知（API 33+ 動態請求） -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 每日提醒的精確鬧鐘；被系統收回時 fallback 改用 WorkManager -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <!-- 開機後重新排程所有 WorkManager 任務與精確鬧鐘 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- 僅於「通知與續航設定精靈」頁觸發的電池最佳化例外請求 -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- AI 分析 API 串接 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- S41 掃碼記帳：條碼掃描畫面需要相機（拍照記帳走系統相片挑選器，不需權限）；required=false 讓無相機裝置也可安裝 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <application
+        android:name=".HmoneyApp"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:enableOnBackInvokedCallback="true"
+        android:theme="@style/Theme.Hmoney">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.Hmoney">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 每日提醒精確鬧鐘 -->
+        <receiver
+            android:name=".data.scheduler.ReminderAlarmReceiver"
+            android:exported="false" />
+
+        <!-- 開機後重新排程 -->
+        <receiver
+            android:name=".data.scheduler.BootCompletedReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- 使用自訂 WorkManager 初始化（HiltWorkerFactory），停用預設初始化 -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+    </application>
+
+</manifest>
